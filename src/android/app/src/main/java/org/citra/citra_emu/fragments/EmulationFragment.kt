@@ -311,8 +311,13 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                     true
                 }
 
-                R.id.menu_emulation_savestates -> {
-                    showSavestateMenu()
+                R.id.menu_emulation_save_state -> {
+                    showStateSubmenu(true)
+                    true
+                }
+
+                R.id.menu_emulation_load_state -> {
+                    showStateSubmenu(false)
                     true
                 }
 
@@ -477,8 +482,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                         if (started) {
                             ViewUtils.hideView(binding.loadingIndicator)
                             ViewUtils.showView(binding.surfaceInputOverlay)
-                            binding.inGameMenu.menu.findItem(R.id.menu_emulation_savestates)
-                                .setVisible(NativeLibrary.getSavestateInfo() != null)
+                            // 存档菜单项现在始终可见，不再需要根据存档状态动态显示
                             binding.drawerLayout.setDrawerLockMode(EmulationMenuSettings.drawerLockMode)
                         }
                     }
@@ -574,32 +578,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         }
     }
 
-    private fun showSavestateMenu() {
-        val popupMenu = PopupMenu(
-            requireContext(),
-            binding.inGameMenu.findViewById(R.id.menu_emulation_savestates)
-        )
 
-        popupMenu.menuInflater.inflate(R.menu.menu_savestates, popupMenu.menu)
-
-        popupMenu.setOnMenuItemClickListener {
-            when (it.itemId) {
-                R.id.menu_emulation_save_state -> {
-                    showStateSubmenu(true)
-                    true
-                }
-
-                R.id.menu_emulation_load_state -> {
-                    showStateSubmenu(false)
-                    true
-                }
-
-                else -> true
-            }
-        }
-
-        popupMenu.show()
-    }
 
     private fun showStateSubmenu(isSaving: Boolean) {
 
@@ -607,7 +586,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
         val popupMenu = PopupMenu(
             requireContext(),
-            binding.inGameMenu.findViewById(R.id.menu_emulation_savestates)
+            binding.inGameMenu.findViewById(R.id.menu_emulation_save_state)
         )
 
         popupMenu.menu.apply {
@@ -651,32 +630,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         popupMenu.show()
     }
 
-    private fun showLoadStateSubmenu() {
-        val savestates = NativeLibrary.getSavestateInfo()
 
-        val popupMenu = PopupMenu(
-            requireContext(),
-            binding.inGameMenu.findViewById(R.id.menu_emulation_savestates)
-        )
-
-        popupMenu.menu.apply {
-            for (i in 0 until NativeLibrary.SAVESTATE_SLOT_COUNT) {
-                val slot = i + 1
-                val text = getString(R.string.emulation_empty_state_slot, slot)
-                add(text).setEnabled(false).setOnMenuItemClickListener {
-                    NativeLibrary.loadState(slot)
-                    true
-                }
-            }
-        }
-
-        savestates?.forEach {
-            val text = getString(R.string.emulation_occupied_state_slot, it.slot, it.time)
-            popupMenu.menu.getItem(it.slot - 1).setTitle(text).setEnabled(true)
-        }
-
-        popupMenu.show()
-    }
 
     private fun displaySavestateWarning() {
         if (preferences.getBoolean("savestateWarningShown", false)) {

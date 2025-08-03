@@ -7,10 +7,14 @@
         android:title="@string/pause_emulation" />
 
     <item
-        android:id="@+id/menu_emulation_savestates"
+        android:id="@+id/menu_emulation_save_state"
         android:icon="@drawable/ic_save"
-        android:title="@string/savestates"
-        android:visible="false" />
+        android:title="@string/emulation_save_state" />
+
+    <item
+        android:id="@+id/menu_emulation_load_state"
+        android:icon="@drawable/ic_restore"
+        android:title="@string/emulation_load_state" />
 
     <item
         android:id="@+id/menu_overlay_options"
@@ -36,6 +40,8 @@
         android:id="@+id/menu_swap_screens"
         android:icon="@drawable/ic_splitscreen"
         android:title="@string/emulation_swap_screens" />
+
+
 
     <item
         android:id="@+id/menu_rotate_upright"
