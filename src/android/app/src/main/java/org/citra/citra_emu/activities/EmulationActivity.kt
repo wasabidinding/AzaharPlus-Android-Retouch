@@ -12,6 +12,7 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -188,11 +189,35 @@ class EmulationActivity : AppCompatActivity() {
 
     fun onEmulationStarted() {
         emulationViewModel.setEmulationStarted(true)
+        
+        // Auto-load the newest save state if available
+        autoLoadNewestSaveState()
+        
         Toast.makeText(
             applicationContext,
             getString(R.string.emulation_menu_help),
             Toast.LENGTH_LONG
         ).show()
+    }
+
+    /**
+     * Automatically loads the newest save state if available
+     */
+    private fun autoLoadNewestSaveState() {
+        try {
+            val savestates = NativeLibrary.getSavestateInfo()
+            if (savestates != null && savestates.isNotEmpty()) {
+                // Find the newest save state by comparing timestamps
+                val newestSaveState = savestates.maxByOrNull { it.time?.time ?: 0L }
+                newestSaveState?.let { saveState ->
+                    // Load the newest save state
+                    NativeLibrary.loadState(saveState.slot)
+                    Log.d("EmulationActivity", "Auto-loaded save state from slot ${saveState.slot}")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("EmulationActivity", "Failed to auto-load save state", e)
+        }
     }
 
     private fun enableFullscreenImmersive() {
