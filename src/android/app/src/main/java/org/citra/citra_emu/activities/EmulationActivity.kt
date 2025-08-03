@@ -11,6 +11,8 @@ import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.InputDevice
 import android.view.KeyEvent
@@ -224,8 +226,10 @@ class EmulationActivity : AppCompatActivity() {
     fun onEmulationStarted() {
         emulationViewModel.setEmulationStarted(true)
         
-        // Auto-load the newest save state if available
-        autoLoadNewestSaveState()
+        // Auto-load the newest save state after a delay to ensure game is fully loaded
+        Handler(Looper.getMainLooper()).postDelayed({
+            autoLoadNewestSaveState()
+        }, 1000) // 2 second delay
         
         Toast.makeText(
             applicationContext,
@@ -239,6 +243,12 @@ class EmulationActivity : AppCompatActivity() {
      */
     private fun autoLoadNewestSaveState() {
         try {
+            // Only load if the system is powered on and running
+            if (!NativeLibrary.isRunning()) {
+                Log.d("EmulationActivity", "System not running, skipping auto-load")
+                return
+            }
+            
             val savestates = NativeLibrary.getSavestateInfo()
             if (savestates != null && savestates.isNotEmpty()) {
                 // Find the newest save state by comparing timestamps
@@ -248,6 +258,8 @@ class EmulationActivity : AppCompatActivity() {
                     NativeLibrary.loadState(saveState.slot)
                     Log.d("EmulationActivity", "Auto-loaded save state from slot ${saveState.slot}")
                 }
+            } else {
+                Log.d("EmulationActivity", "No save states available for auto-load")
             }
         } catch (e: Exception) {
             Log.e("EmulationActivity", "Failed to auto-load save state", e)
