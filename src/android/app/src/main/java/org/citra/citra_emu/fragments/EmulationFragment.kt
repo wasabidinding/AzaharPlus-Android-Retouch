@@ -21,6 +21,7 @@ import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.os.SystemClock
 import android.text.Editable
+import android.text.Html
 import android.text.TextWatcher
 import android.view.Choreographer
 import android.view.Gravity
@@ -584,6 +585,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
         val savestates = NativeLibrary.getSavestateInfo()
 
+        // 找到最新的存档（时间最新的）
+        val latestSavestate = savestates?.maxByOrNull { it.time?.time ?: 0L }
+
         val popupMenu = PopupMenu(
             requireContext(),
             binding.inGameMenu.findViewById(R.id.menu_emulation_save_state)
@@ -624,7 +628,13 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             } else{
                 getString(R.string.emulation_occupied_state_slot, it.slot, it.time)
             }
-            popupMenu.menu.getItem(it.slot).setTitle(text).setEnabled(enableClick)
+            val menuItem = popupMenu.menu.getItem(it.slot)
+            menuItem.setTitle(text).setEnabled(enableClick)
+            
+            // 如果这是最新的存档，设置高亮颜色
+            if (it == latestSavestate) {
+                menuItem.setTitle(Html.fromHtml("<font color='#1A4DAB'>$text</font>", Html.FROM_HTML_MODE_LEGACY))
+            }
         }
 
         popupMenu.show()
