@@ -36,6 +36,14 @@
     <integer name="N3DS_BUTTON_TURBO_X">630</integer>
     <integer name="N3DS_BUTTON_TURBO_Y">850</integer>
 
+    <!-- 新增按钮的默认位置 -->
+    <integer name="N3DS_BUTTON_QUICK_SAVE_X">690</integer>
+    <integer name="N3DS_BUTTON_QUICK_SAVE_Y">850</integer>
+    <integer name="N3DS_BUTTON_QUICK_LOAD_X">750</integer>
+    <integer name="N3DS_BUTTON_QUICK_LOAD_Y">850</integer>
+    <integer name="N3DS_BUTTON_MENU_X">810</integer>
+    <integer name="N3DS_BUTTON_MENU_Y">850</integer>
+
     <!-- Default N3DS portrait layout -->
     <integer name="N3DS_BUTTON_A_PORTRAIT_X">810</integer>
     <integer name="N3DS_BUTTON_A_PORTRAIT_Y">870</integer>
@@ -69,5 +77,13 @@
     <integer name="N3DS_BUTTON_SWAP_PORTRAIT_Y">675</integer>
     <integer name="N3DS_BUTTON_TURBO_PORTRAIT_X">453</integer>
     <integer name="N3DS_BUTTON_TURBO_PORTRAIT_Y">720</integer>
+
+    <!-- 新增按钮的竖屏默认位置 -->
+    <integer name="N3DS_BUTTON_QUICK_SAVE_PORTRAIT_X">350</integer>
+    <integer name="N3DS_BUTTON_QUICK_SAVE_PORTRAIT_Y">750</integer>
+    <integer name="N3DS_BUTTON_QUICK_LOAD_PORTRAIT_X">450</integer>
+    <integer name="N3DS_BUTTON_QUICK_LOAD_PORTRAIT_Y">750</integer>
+    <integer name="N3DS_BUTTON_MENU_PORTRAIT_X">550</integer>
+    <integer name="N3DS_BUTTON_MENU_PORTRAIT_Y">750</integer>
 
 </resources>

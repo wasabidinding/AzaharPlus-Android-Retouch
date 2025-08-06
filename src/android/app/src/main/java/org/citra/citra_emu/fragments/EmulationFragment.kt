@@ -520,6 +520,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         return binding.drawerLayout.isOpen
     }
 
+    fun openDrawer() {
+        binding.drawerLayout.open()
+    }
 
 
     private fun togglePause() {
@@ -819,6 +822,21 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                     true
                 }
 
+                R.id.menu_emulation_adjust_scale_button_quick_save -> {
+                    showAdjustScaleDialog("controlScale-" + NativeLibrary.ButtonType.BUTTON_QUICK_SAVE)
+                    true
+                }
+
+                R.id.menu_emulation_adjust_scale_button_quick_load -> {
+                    showAdjustScaleDialog("controlScale-" + NativeLibrary.ButtonType.BUTTON_QUICK_LOAD)
+                    true
+                }
+
+                R.id.menu_emulation_adjust_scale_button_menu -> {
+                    showAdjustScaleDialog("controlScale-" + NativeLibrary.ButtonType.BUTTON_MENU)
+                    true
+                }
+
                 R.id.menu_emulation_adjust_opacity -> {
                     showAdjustOpacityDialog()
                     true
@@ -1036,13 +1054,13 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
     private fun showToggleControlsDialog() {
         val editor = preferences.edit()
-        val enabledButtons = BooleanArray(16)
+        val enabledButtons = BooleanArray(19)
         enabledButtons.forEachIndexed { i: Int, _: Boolean ->
             // Buttons that are disabled by default
             var defaultValue = true
             when (i) {
                 // TODO: Remove these magic numbers
-                6, 7, 12, 13, 14, 15 -> defaultValue = false
+                6, 7, 12, 13, 14, 15, 16, 17, 18 -> defaultValue = false
             }
             enabledButtons[i] = preferences.getBoolean("buttonToggle$i", defaultValue)
         }
@@ -1204,6 +1222,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         resetScale("controlScale-" + NativeLibrary.ButtonType.STICK_C)
         resetScale("controlScale-" + NativeLibrary.ButtonType.BUTTON_HOME)
         resetScale("controlScale-" + NativeLibrary.ButtonType.BUTTON_SWAP)
+        resetScale("controlScale-" + NativeLibrary.ButtonType.BUTTON_QUICK_SAVE)
+        resetScale("controlScale-" + NativeLibrary.ButtonType.BUTTON_QUICK_LOAD)
+        resetScale("controlScale-" + NativeLibrary.ButtonType.BUTTON_MENU)
         binding.surfaceInputOverlay.refreshControls()
     }
 
@@ -1231,10 +1252,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             .apply()
 
         val editor = preferences.edit()
-        for (i in 0 until 16) {
+        for (i in 0 until 19) {
             var defaultValue = true
             when (i) {
-                6, 7, 12, 13, 14, 15 -> defaultValue = false
+                6, 7, 12, 13, 14, 15, 16, 17, 18 -> defaultValue = false
             }
             editor.putBoolean("buttonToggle$i", defaultValue)
         }

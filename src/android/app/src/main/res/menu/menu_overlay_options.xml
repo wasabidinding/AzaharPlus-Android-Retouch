@@ -79,6 +79,15 @@
             <item
                 android:id="@+id/menu_emulation_adjust_scale_button_swap"
                 android:title="@string/button_swap" />
+            <item
+                android:id="@+id/menu_emulation_adjust_scale_button_quick_save"
+                android:title="@string/button_quick_save" />
+            <item
+                android:id="@+id/menu_emulation_adjust_scale_button_quick_load"
+                android:title="@string/button_quick_load" />
+            <item
+                android:id="@+id/menu_emulation_adjust_scale_button_menu"
+                android:title="@string/button_menu" />
         </menu>
     </item>
 

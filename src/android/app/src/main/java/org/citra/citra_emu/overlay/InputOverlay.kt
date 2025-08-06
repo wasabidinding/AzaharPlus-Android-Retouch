@@ -28,6 +28,7 @@ import org.citra.citra_emu.utils.EmulationMenuSettings
 import org.citra.citra_emu.utils.TurboHelper
 import java.lang.NullPointerException
 import kotlin.math.min
+import android.widget.Toast
 
 /**
  * Draws the interactive input overlay on top of the
@@ -97,6 +98,104 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             return onTouchWhileEditing(event)
         }
 
+            if (button.id == NativeLibrary.ButtonType.BUTTON_SWAP && button.status == NativeLibrary.ButtonState.PRESSED) {
+                swapScreen()
+            }
+
+            if (button.id == NativeLibrary.ButtonType.BUTTON_TURBO && button.status == NativeLibrary.ButtonState.PRESSED) {
+                TurboHelper.setTurboEnabled((!TurboHelper.isTurboSpeedEnabled()))
+            }
+
+            if (button.id == NativeLibrary.ButtonType.BUTTON_QUICK_SAVE && button.status == NativeLibrary.ButtonState.PRESSED) {
+                // 实现快速保存功能
+                NativeLibrary.saveState(NativeLibrary.QUICKSAVE_SLOT)
+                Toast.makeText(context,
+                    context.getString(R.string.saving),
+                    Toast.LENGTH_SHORT).show()
+            }
+
+            if (button.id == NativeLibrary.ButtonType.BUTTON_QUICK_LOAD && button.status == NativeLibrary.ButtonState.PRESSED) {
+                // 实现快速加载功能
+                val wasLoaded = NativeLibrary.loadStateIfAvailable(NativeLibrary.QUICKSAVE_SLOT)
+                val stringRes = if(wasLoaded) {
+                    R.string.loading
+                } else {
+                    R.string.quickload_not_found
+                }
+                Toast.makeText(context,
+                    context.getString(stringRes),
+                    Toast.LENGTH_SHORT).show()
+            }
+
+            if (button.id == NativeLibrary.ButtonType.BUTTON_MENU && button.status == NativeLibrary.ButtonState.PRESSED) {
+                // 实现菜单功能 - 打开侧边抽屉菜单
+                val emulationActivity = NativeLibrary.sEmulationActivity.get()
+                emulationActivity?.let { activity ->
+                    activity.runOnUiThread {
+                        // 通过EmulationFragment来访问drawer layout
+                        val fragment = activity.supportFragmentManager.fragments.firstOrNull {
+                            it is org.citra.citra_emu.fragments.EmulationFragment
+                        } as? org.citra.citra_emu.fragments.EmulationFragment
+
+                        fragment?.openDrawer() ?: run {
+                            // 如果找不到fragment，使用back press方法
+                            activity.onBackPressed()
+                        }
+                    }
+                }
+            }
+
+            NativeLibrary.onGamePadEvent(NativeLibrary.TouchScreenDevice, button.id, button.status)
+            shouldUpdateView = true
+        }
+        for (dpad in overlayDpads) {
+            if (!dpad.updateStatus(event, EmulationMenuSettings.dpadSlide, this)) {
+                continue
+            }
+            NativeLibrary.onGamePadEvent(NativeLibrary.TouchScreenDevice, dpad.upId, dpad.upStatus)
+            NativeLibrary.onGamePadEvent(
+                NativeLibrary.TouchScreenDevice,
+                dpad.downId,
+                dpad.downStatus
+            )
+            NativeLibrary.onGamePadEvent(
+                NativeLibrary.TouchScreenDevice,
+                dpad.leftId,
+                dpad.leftStatus
+            )
+            NativeLibrary.onGamePadEvent(
+                NativeLibrary.TouchScreenDevice,
+                dpad.rightId,
+                dpad.rightStatus
+            )
+            shouldUpdateView = true
+        }
+        for (joystick in overlayJoysticks) {
+            if (!joystick.updateStatus(event, this)) {
+                continue
+            }
+            val axisID = joystick.joystickId
+            NativeLibrary.onGamePadMoveEvent(
+                NativeLibrary.TouchScreenDevice,
+                axisID,
+                joystick.xAxis,
+                joystick.yAxis
+            )
+            shouldUpdateView = true
+        }
+
+        if (shouldUpdateView) {
+            invalidate()
+        }
+
+        if (!preferences.getBoolean("isTouchEnabled", true)) {
+            return true
+        }
+
+        val pointerIndex = event.actionIndex
+        val xPosition = event.getX(pointerIndex).toInt()
+        val yPosition = event.getY(pointerIndex).toInt()
+        val pointerId = event.getPointerId(pointerIndex)
         val motionEvent = event.action and MotionEvent.ACTION_MASK
         val isActionDown =
             motionEvent == MotionEvent.ACTION_DOWN || motionEvent == MotionEvent.ACTION_POINTER_DOWN
@@ -568,6 +667,42 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
                 )
             )
         }
+
+        if (preferences.getBoolean("buttonToggle16", false)) {
+            overlayButtons.add(
+                initializeOverlayButton(
+                    context,
+                    R.drawable.button_quick_save,
+                    R.drawable.button_quick_save,
+                    NativeLibrary.ButtonType.BUTTON_QUICK_SAVE,
+                    orientation
+                )
+            )
+        }
+
+        if (preferences.getBoolean("buttonToggle17", false)) {
+            overlayButtons.add(
+                initializeOverlayButton(
+                    context,
+                    R.drawable.button_quick_load,
+                    R.drawable.button_quick_load,
+                    NativeLibrary.ButtonType.BUTTON_QUICK_LOAD,
+                    orientation
+                )
+            )
+        }
+
+        if (preferences.getBoolean("buttonToggle18", false)) {
+            overlayButtons.add(
+                initializeOverlayButton(
+                    context,
+                    R.drawable.button_menu,
+                    R.drawable.button_menu,
+                    NativeLibrary.ButtonType.BUTTON_MENU,
+                    orientation
+                )
+            )
+        }
     }
 
     fun refreshControls() {
@@ -781,6 +916,30 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
                 NativeLibrary.ButtonType.BUTTON_TURBO.toString() + "-Y",
                 resources.getInteger(R.integer.N3DS_BUTTON_TURBO_Y).toFloat() / 1000 * maxY
             )
+            .putFloat(
+                NativeLibrary.ButtonType.BUTTON_QUICK_SAVE.toString() + "-X",
+                resources.getInteger(R.integer.N3DS_BUTTON_QUICK_SAVE_X).toFloat() / 1000 * maxX
+            )
+            .putFloat(
+                NativeLibrary.ButtonType.BUTTON_QUICK_SAVE.toString() + "-Y",
+                resources.getInteger(R.integer.N3DS_BUTTON_QUICK_SAVE_Y).toFloat() / 1000 * maxY
+            )
+            .putFloat(
+                NativeLibrary.ButtonType.BUTTON_QUICK_LOAD.toString() + "-X",
+                resources.getInteger(R.integer.N3DS_BUTTON_QUICK_LOAD_X).toFloat() / 1000 * maxX
+            )
+            .putFloat(
+                NativeLibrary.ButtonType.BUTTON_QUICK_LOAD.toString() + "-Y",
+                resources.getInteger(R.integer.N3DS_BUTTON_QUICK_LOAD_Y).toFloat() / 1000 * maxY
+            )
+            .putFloat(
+                NativeLibrary.ButtonType.BUTTON_MENU.toString() + "-X",
+                resources.getInteger(R.integer.N3DS_BUTTON_MENU_X).toFloat() / 1000 * maxX
+            )
+            .putFloat(
+                NativeLibrary.ButtonType.BUTTON_MENU.toString() + "-Y",
+                resources.getInteger(R.integer.N3DS_BUTTON_MENU_Y).toFloat() / 1000 * maxY
+            )
             .apply()
     }
 
@@ -931,6 +1090,30 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             .putFloat(
                 NativeLibrary.ButtonType.BUTTON_TURBO.toString() + portrait + "-Y",
                 resources.getInteger(R.integer.N3DS_BUTTON_TURBO_PORTRAIT_Y).toFloat() / 1000 * maxY
+            )
+            .putFloat(
+                NativeLibrary.ButtonType.BUTTON_QUICK_SAVE.toString() + portrait + "-X",
+                resources.getInteger(R.integer.N3DS_BUTTON_QUICK_SAVE_PORTRAIT_X).toFloat() / 1000 * maxX
+            )
+            .putFloat(
+                NativeLibrary.ButtonType.BUTTON_QUICK_SAVE.toString() + portrait + "-Y",
+                resources.getInteger(R.integer.N3DS_BUTTON_QUICK_SAVE_PORTRAIT_Y).toFloat() / 1000 * maxY
+            )
+            .putFloat(
+                NativeLibrary.ButtonType.BUTTON_QUICK_LOAD.toString() + portrait + "-X",
+                resources.getInteger(R.integer.N3DS_BUTTON_QUICK_LOAD_PORTRAIT_X).toFloat() / 1000 * maxX
+            )
+            .putFloat(
+                NativeLibrary.ButtonType.BUTTON_QUICK_LOAD.toString() + portrait + "-Y",
+                resources.getInteger(R.integer.N3DS_BUTTON_QUICK_LOAD_PORTRAIT_Y).toFloat() / 1000 * maxY
+            )
+            .putFloat(
+                NativeLibrary.ButtonType.BUTTON_MENU.toString() + portrait + "-X",
+                resources.getInteger(R.integer.N3DS_BUTTON_MENU_PORTRAIT_X).toFloat() / 1000 * maxX
+            )
+            .putFloat(
+                NativeLibrary.ButtonType.BUTTON_MENU.toString() + portrait + "-Y",
+                resources.getInteger(R.integer.N3DS_BUTTON_MENU_PORTRAIT_Y).toFloat() / 1000 * maxY
             )
             .apply()
     }
@@ -1209,12 +1392,8 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             // Now set the bounds for the InputOverlayDrawableJoystick.
             // This will dictate where on the screen (and the what the size) the InputOverlayDrawableJoystick will be.
             val outerSize = bitmapOuter.width
-            val outerRect = Rect(
-                drawableX,
-                drawableY,
-                drawableX + (outerSize / outerScale).toInt(),
-                drawableY + (outerSize / outerScale).toInt()
-            )
+            val outerRect =
+                Rect(drawableX, drawableY, drawableX + (outerSize / outerScale).toInt(), drawableY + (outerSize / outerScale).toInt())
             val innerRect =
                 Rect(0, 0, (outerSize / outerScale).toInt(), (outerSize / outerScale).toInt())
 
