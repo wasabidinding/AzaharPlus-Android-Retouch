@@ -196,6 +196,18 @@
                 android:contentDescription="@string/compress"
                 android:text="@string/compress" />
 
+            <Space
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/auto_load_state_switch"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_vertical"
+                android:text="@string/auto_load_state" />
+
         </LinearLayout>
 
         <LinearLayout

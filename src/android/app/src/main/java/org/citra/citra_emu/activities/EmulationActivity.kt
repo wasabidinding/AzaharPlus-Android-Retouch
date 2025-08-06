@@ -233,6 +233,19 @@ class EmulationActivity : AppCompatActivity() {
         
         // 检查是否有存档需要加载
         Handler(Looper.getMainLooper()).postDelayed({
+            // 首先检查自动加载开关状态
+            val preferences = PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext)
+            val currentGame = emulationFragment.getCurrentGame()
+            val autoLoadStateKey = "auto_load_state_${currentGame.titleId}"
+            val isAutoLoadEnabled = preferences.getBoolean(autoLoadStateKey, true)
+            
+            if (!isAutoLoadEnabled) {
+                // 自动加载已关闭，直接隐藏加载界面并显示准备就绪提示
+                emulationViewModel.setLoadingOverlayVisible(false)
+                showLoadingToast(getString(R.string.game_ready))
+                return@postDelayed
+            }
+            
             val savestates = NativeLibrary.getSavestateInfo()
             if (savestates != null && savestates.isNotEmpty()) {
                 // 有存档，显示存档加载提示，保持overlay显示

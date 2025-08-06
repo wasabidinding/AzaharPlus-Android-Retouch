@@ -521,6 +521,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         return binding.drawerLayout.isOpen
     }
 
+    fun getCurrentGame(): Game {
+        return game
+    }
+
     fun openDrawer() {
         binding.drawerLayout.open()
     }

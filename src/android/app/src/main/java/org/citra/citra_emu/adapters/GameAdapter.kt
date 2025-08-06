@@ -394,6 +394,20 @@ class GameAdapter(
 
         GameIconUtils.loadGameIcon(activity, game, bottomSheetView.findViewById(R.id.game_icon))
 
+        // 设置自动加载存档开关的状态
+        val preferences = PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext)
+        val autoLoadStateKey = "auto_load_state_${game.titleId}"
+        val autoLoadStateSwitch = bottomSheetView.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.auto_load_state_switch)
+        
+        // 默认开启自动加载存档
+        val isAutoLoadEnabled = preferences.getBoolean(autoLoadStateKey, true)
+        autoLoadStateSwitch.isChecked = isAutoLoadEnabled
+        
+        // 监听开关状态变化并保存
+        autoLoadStateSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferences.edit().putBoolean(autoLoadStateKey, isChecked).apply()
+        }
+
         bottomSheetView.findViewById<MaterialButton>(R.id.about_game_play).setOnClickListener {
             val action = HomeNavigationDirections.actionGlobalEmulationActivity(holder.game)
             view.findNavController().navigate(action)
