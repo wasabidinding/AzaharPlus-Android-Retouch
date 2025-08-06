@@ -474,6 +474,35 @@ void Java_org_citra_citra_1emu_NativeLibrary_swapScreens([[maybe_unused]] JNIEnv
     Camera::NDK::g_rotation = rotation;
 }
 
+jintArray Java_org_citra_citra_1emu_NativeLibrary_getScreenLayout([[maybe_unused]] JNIEnv* env,
+                                                                  [[maybe_unused]] jobject obj) {
+    auto& system = Core::System::GetInstance();
+    if (!system.IsPoweredOn()) {
+        return nullptr;
+    }
+
+    const auto& layout = system.GPU().Renderer().GetRenderWindow().GetFramebufferLayout();
+    
+    // Return array: [top_left_x, top_left_y, top_right_x, top_right_y, 
+    //                bottom_left_x, bottom_left_y, bottom_right_x, bottom_right_y]
+    jintArray result = env->NewIntArray(8);
+    if (result != nullptr) {
+        jint coords[8];
+        coords[0] = static_cast<jint>(layout.top_screen.left);
+        coords[1] = static_cast<jint>(layout.top_screen.top);
+        coords[2] = static_cast<jint>(layout.top_screen.right);
+        coords[3] = static_cast<jint>(layout.top_screen.bottom);
+        coords[4] = static_cast<jint>(layout.bottom_screen.left);
+        coords[5] = static_cast<jint>(layout.bottom_screen.top);
+        coords[6] = static_cast<jint>(layout.bottom_screen.right);
+        coords[7] = static_cast<jint>(layout.bottom_screen.bottom);
+        
+        env->SetIntArrayRegion(result, 0, 8, coords);
+    }
+    
+    return result;
+}
+
 jboolean Java_org_citra_citra_1emu_NativeLibrary_areKeysAvailable([[maybe_unused]] JNIEnv* env,
                                                                   [[maybe_unused]] jobject obj) {
     HW::AES::InitKeys();

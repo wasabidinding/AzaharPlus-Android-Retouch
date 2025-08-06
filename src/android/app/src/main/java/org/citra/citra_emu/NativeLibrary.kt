@@ -222,6 +222,13 @@ object NativeLibrary {
      */
     external fun swapScreens(swapScreens: Boolean, rotation: Int)
 
+    /**
+     * Gets the current screen layout coordinates
+     * Returns array: [top_left_x, top_left_y, top_right_x, top_right_y, 
+     *                 bottom_left_x, bottom_left_y, bottom_right_x, bottom_right_y]
+     */
+    external fun getScreenLayout(): IntArray?
+
     external fun initializeGpuDriver(
         hookLibDir: String?,
         customDriverDir: String?,

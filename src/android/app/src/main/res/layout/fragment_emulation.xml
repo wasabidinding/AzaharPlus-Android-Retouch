@@ -11,15 +11,33 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent">
 
-        <!-- This is what everything is rendered to during emulation -->
-        <SurfaceView
-            android:id="@+id/surface_emulation"
+        <!-- Container for game surface -->
+        <FrameLayout
+            android:id="@+id/surface_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_gravity="center">
+            
+            <!-- This is what everything is rendered to during emulation -->
+            <SurfaceView
+                android:id="@+id/surface_emulation"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_gravity="center"
+                android:defaultFocusHighlightEnabled="false"
+                android:focusable="false"
+                android:focusableInTouchMode="false" />
+        </FrameLayout>
+
+        <!-- Custom border overlay view -->
+        <org.citra.citra_emu.overlay.BorderOverlayView
+            android:id="@+id/custom_border_overlay"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:layout_gravity="center"
-            android:defaultFocusHighlightEnabled="false"
+            android:clickable="false"
             android:focusable="false"
-            android:focusableInTouchMode="false" />
+            android:elevation="0.5dp" />
 
         <!-- This is the onscreen input overlay -->
         <org.citra.citra_emu.overlay.InputOverlay
