@@ -179,6 +179,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         // Show/hide the "Show FPS" overlay
         updateShowFpsOverlay()
 
+        // Initialize border overlay
+        initializeBorderOverlay()
+
+
+
         binding.drawerLayout.setDrawerLockMode(DrawerLayout.LOCK_MODE_LOCKED_CLOSED)
         binding.drawerLayout.addDrawerListener(object : DrawerListener {
             override fun onDrawerSlide(drawerView: View, slideOffset: Float) {
@@ -434,6 +439,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                             ViewUtils.showView(binding.surfaceInputOverlay)
                             // 存档菜单项现在始终可见，不再需要根据存档状态动态显示
                             binding.drawerLayout.setDrawerLockMode(EmulationMenuSettings.drawerLockMode)
+                            
+                            // Enable border overlay when game is truly loaded
+                            binding.customBorderOverlay?.let { borderView ->
+                                startBorderRefresh(borderView)
+                            }
                         }
                     }
                 }
@@ -1332,6 +1342,32 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             RUNNING,
             PAUSED
         }
+    }
+
+    private fun initializeBorderOverlay() {
+        // Initialize the custom border overlay for 3DS screens (but don't start refresh yet)
+        binding.customBorderOverlay?.let { borderView ->
+            borderView.visibility = View.VISIBLE
+        }
+    }
+
+    private fun startBorderRefresh(borderView: org.citra.citra_emu.overlay.BorderOverlayView) {
+        // Add 1 second delay after game loading to avoid flickering
+        borderView.postDelayed({
+            borderView.enableBorder()
+            
+            // Start periodic refresh after enabling
+            val refreshRunnable = object : Runnable {
+                override fun run() {
+                    if (!requireActivity().isFinishing) {
+                        borderView.refreshBorders()
+                        borderView.postDelayed(this, 300) // Refresh every 300ms (stable)
+                    }
+                }
+            }
+            // Start refresh immediately after enabling
+            borderView.post(refreshRunnable)
+        }, 10) // Wait 0.01s after game is loaded
     }
 
     companion object {

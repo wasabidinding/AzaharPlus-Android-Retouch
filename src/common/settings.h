@@ -541,9 +541,9 @@ struct Values {
     Setting<u16> custom_portrait_bottom_width{640, "custom_portrait_bottom_width"};
     Setting<u16> custom_portrait_bottom_height{480, "custom_portrait_bottom_height"};
 
-    SwitchableSetting<float> bg_red{0.f, "bg_red"};
-    SwitchableSetting<float> bg_green{0.f, "bg_green"};
-    SwitchableSetting<float> bg_blue{0.f, "bg_blue"};
+    SwitchableSetting<float> bg_red{0.878f, "bg_red"};
+    SwitchableSetting<float> bg_green{0.875f, "bg_green"};
+    SwitchableSetting<float> bg_blue{0.859f, "bg_blue"};
 
     SwitchableSetting<StereoRenderOption> render_3d{StereoRenderOption::Off, "render_3d"};
     SwitchableSetting<u32> factor_3d{0, "factor_3d"};
