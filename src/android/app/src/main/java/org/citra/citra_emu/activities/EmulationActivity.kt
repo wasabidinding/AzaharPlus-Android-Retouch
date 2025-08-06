@@ -69,6 +69,8 @@ class EmulationActivity : AppCompatActivity() {
             return navHostFragment.getChildFragmentManager().fragments.last() as EmulationFragment
         }
 
+
+
     private var isEmulationRunning: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -190,17 +192,41 @@ class EmulationActivity : AppCompatActivity() {
     }
 
     fun onEmulationStarted() {
-        emulationViewModel.setEmulationStarted(true)
+        emulationViewModel.setEmulationStarted(true) // 立即设置，不延迟游戏启动
         
-        // Auto-load the newest save state after a delay to ensure game is fully loaded
+        // 显示游戏加载完成提示
+        showLoadingToast(getString(R.string.game_loaded_successfully))
+        
+        // 检查是否有存档需要加载
         Handler(Looper.getMainLooper()).postDelayed({
-            autoLoadNewestSaveState()
-        }, 1000) // 2 second delay
-        
+            val savestates = NativeLibrary.getSavestateInfo()
+            if (savestates != null && savestates.isNotEmpty()) {
+                // 有存档，显示存档加载提示，保持overlay显示
+                showLoadingToast(getString(R.string.loading_save_state))
+                
+                // 等待一会儿让用户看到提示，然后加载存档
+                Handler(Looper.getMainLooper()).postDelayed({
+                    // 加载最新存档
+                    autoLoadNewestSaveState()
+                    
+                    // 等待存档加载完成后再隐藏加载界面
+                    Handler(Looper.getMainLooper()).postDelayed({
+                        emulationViewModel.setLoadingOverlayVisible(false)
+                    }, 1000) // 给存档加载更多时间
+                }, 500) // 显示"正在加载存档"提示后等待500ms
+            } else {
+                // 没有存档，直接隐藏加载界面并显示准备就绪提示
+                emulationViewModel.setLoadingOverlayVisible(false)
+                showLoadingToast(getString(R.string.game_ready))
+            }
+        }, 1000) // 等待1秒确保游戏稳定运行
+    }
+
+    private fun showLoadingToast(message: String) {
         Toast.makeText(
             applicationContext,
-            getString(R.string.emulation_menu_help),
-            Toast.LENGTH_LONG
+            message,
+            Toast.LENGTH_SHORT
         ).show()
     }
 

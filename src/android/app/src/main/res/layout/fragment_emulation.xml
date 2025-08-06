@@ -59,13 +59,24 @@
             android:text="@string/emulation_done"
             android:visibility="gone" />
 
+        <!-- Black overlay for loading screen -->
+        <View
+            android:id="@+id/loading_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/black"
+            android:clickable="true"
+            android:focusable="true"
+            android:elevation="10dp" />
+
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/loading_indicator"
             style="?attr/materialCardViewOutlinedStyle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:focusable="false">
+            android:focusable="false"
+            android:elevation="12dp">
 
             <androidx.constraintlayout.widget.ConstraintLayout
                 android:id="@+id/loading_layout"

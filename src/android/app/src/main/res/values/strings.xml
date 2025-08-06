@@ -355,6 +355,9 @@
     <string name="error_saving">Error saving %1$s.ini: %2$s</string>
     <string name="saving">Saving…</string>
     <string name="loading">Loading…</string>
+    <string name="loading_save_state">Loading save state…</string>
+    <string name="game_loaded_successfully">Game loaded successfully</string>
+    <string name="game_ready">Game ready</string>
     <string name="next">Next</string>
     <string name="back">Back</string>
     <string name="learn_more">Learn More</string>
