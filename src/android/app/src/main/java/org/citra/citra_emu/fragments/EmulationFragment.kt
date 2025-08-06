@@ -56,6 +56,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
 import java.io.File
 import kotlinx.coroutines.flow.collectLatest
+
 import kotlinx.coroutines.launch
 import org.citra.citra_emu.CitraApplication
 import org.citra.citra_emu.EmulationNavigationDirections
@@ -1597,17 +1598,52 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         // 直接启用边框，移除延时
         borderView.enableBorder()
 
-        // 启用后立即开始周期性刷新
-        val refreshRunnable = object : Runnable {
-            override fun run() {
-                if (!requireActivity().isFinishing) {
+        // 只在布局变化时刷新边框，而不是持续刷新
+        setupLayoutChangeListener(borderView)
+    }
+
+    private fun setupLayoutChangeListener(borderView: org.citra.citra_emu.overlay.BorderOverlayView) {
+        // 监听布局变化的关键时机
+        var lastOrientation = resources.configuration.orientation
+        var lastLandscapeLayout = IntSetting.SCREEN_LAYOUT.int
+        var lastPortraitLayout = IntSetting.PORTRAIT_SCREEN_LAYOUT.int
+        var lastSwapScreens = BooleanSetting.SWAP_SCREEN.boolean
+
+        // 创建一个智能的检查函数
+        val checkForChanges = {
+            val currentOrientation = resources.configuration.orientation
+            val currentLandscapeLayout = IntSetting.SCREEN_LAYOUT.int
+            val currentPortraitLayout = IntSetting.PORTRAIT_SCREEN_LAYOUT.int
+            val currentSwapScreens = BooleanSetting.SWAP_SCREEN.boolean
+
+            val hasChanged = currentOrientation != lastOrientation ||
+                    currentLandscapeLayout != lastLandscapeLayout ||
+                    currentPortraitLayout != lastPortraitLayout ||
+                    currentSwapScreens != lastSwapScreens
+
+            if (hasChanged && emulationViewModel.emulationStarted.value) {
+                lastOrientation = currentOrientation
+                lastLandscapeLayout = currentLandscapeLayout
+                lastPortraitLayout = currentPortraitLayout
+                lastSwapScreens = currentSwapScreens
+                
+                // 延迟一点刷新，确保布局变化完成
+                borderView.postDelayed({
                     borderView.refreshBorders()
-                    borderView.postDelayed(this, 300) // 每 300ms 刷新一次（稳定）
+                }, 100)
+            }
+        }
+
+        // 使用更长的检查间隔（1秒），减少CPU使用
+        val layoutCheckRunnable = object : Runnable {
+            override fun run() {
+                if (!requireActivity().isFinishing && !isDetached) {
+                    checkForChanges()
+                    borderView.postDelayed(this, 1000) // 1秒检查一次
                 }
             }
         }
-        // 启用后立即开始刷新
-        borderView.post(refreshRunnable)
+        borderView.post(layoutCheckRunnable)
     }
 
 
