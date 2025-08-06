@@ -361,6 +361,7 @@
     <string name="loading_save_state">Loading save state…</string>
     <string name="game_loaded_successfully">Game loaded successfully</string>
     <string name="game_ready">Game ready</string>
+    <string name="auto_load_state">Auto Load State</string>
     <string name="next">Next</string>
     <string name="back">Back</string>
     <string name="learn_more">Learn More</string>
