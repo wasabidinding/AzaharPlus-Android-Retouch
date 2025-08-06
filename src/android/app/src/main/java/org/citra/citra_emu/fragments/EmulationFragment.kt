@@ -486,7 +486,6 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 repeatOnLifecycle(Lifecycle.State.CREATED) {
                     emulationViewModel.emulationStarted.collectLatest { started ->
                         if (started) {
-                            ViewUtils.hideView(binding.loadingIndicator)
                             ViewUtils.showView(binding.surfaceInputOverlay)
                             // 存档菜单项现在始终可见，不再需要根据存档状态动态显示
                             binding.drawerLayout.setDrawerLockMode(EmulationMenuSettings.drawerLockMode)
@@ -499,6 +498,19 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                     }
                 }
             }
+            launch {
+                repeatOnLifecycle(Lifecycle.State.CREATED) {
+                    emulationViewModel.loadingOverlayVisible.collectLatest { visible ->
+                        if (visible) {
+                            ViewUtils.showView(binding.loadingOverlay)
+                            ViewUtils.showView(binding.loadingIndicator)
+                        } else {
+                            ViewUtils.hideView(binding.loadingOverlay)
+                            ViewUtils.hideView(binding.loadingIndicator)
+                        }
+                    }
+                }
+            }
         }
 
         setInsets()
@@ -507,6 +519,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     fun isDrawerOpen(): Boolean {
         return binding.drawerLayout.isOpen
     }
+
+
 
     private fun togglePause() {
         if (emulationState.isPaused) {
@@ -1559,23 +1573,22 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     }
 
     private fun startBorderRefresh(borderView: org.citra.citra_emu.overlay.BorderOverlayView) {
-        // Add 1 second delay after game loading to avoid flickering
-        borderView.postDelayed({
-            borderView.enableBorder()
-            
-            // Start periodic refresh after enabling
-            val refreshRunnable = object : Runnable {
-                override fun run() {
-                    if (!requireActivity().isFinishing) {
-                        borderView.refreshBorders()
-                        borderView.postDelayed(this, 300) // Refresh every 300ms (stable)
-                    }
+        // 直接启用边框，移除延时
+        borderView.enableBorder()
+
+        // 启用后立即开始周期性刷新
+        val refreshRunnable = object : Runnable {
+            override fun run() {
+                if (!requireActivity().isFinishing) {
+                    borderView.refreshBorders()
+                    borderView.postDelayed(this, 300) // 每 300ms 刷新一次（稳定）
                 }
             }
-            // Start refresh immediately after enabling
-            borderView.post(refreshRunnable)
-        }, 10) // Wait 0.01s after game is loaded
+        }
+        // 启用后立即开始刷新
+        borderView.post(refreshRunnable)
     }
+
 
     companion object {
         private val perfStatsUpdateHandler = Handler(Looper.myLooper()!!)

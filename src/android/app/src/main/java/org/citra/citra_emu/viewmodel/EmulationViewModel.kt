@@ -12,6 +12,9 @@ class EmulationViewModel : ViewModel() {
     val emulationStarted get() = _emulationStarted.asStateFlow()
     private val _emulationStarted = MutableStateFlow(false)
 
+    val loadingOverlayVisible get() = _loadingOverlayVisible.asStateFlow()
+    private val _loadingOverlayVisible = MutableStateFlow(true)
+
     val shaderProgress get() = _shaderProgress.asStateFlow()
     private val _shaderProgress = MutableStateFlow(0)
 
@@ -41,5 +44,9 @@ class EmulationViewModel : ViewModel() {
 
     fun setEmulationStarted(started: Boolean) {
         _emulationStarted.value = started
+    }
+
+    fun setLoadingOverlayVisible(visible: Boolean) {
+        _loadingOverlayVisible.value = visible
     }
 }
