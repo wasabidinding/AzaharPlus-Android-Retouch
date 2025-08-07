@@ -585,9 +585,9 @@ struct Values {
     Setting<u16> custom_portrait_bottom_width{640, Keys::custom_portrait_bottom_width};
     Setting<u16> custom_portrait_bottom_height{480, Keys::custom_portrait_bottom_height};
 
-    SwitchableSetting<float> bg_red{0.878f, Keys::bg_red};
-    SwitchableSetting<float> bg_green{0.875f, Keys::bg_green};
-    SwitchableSetting<float> bg_blue{0.859f, Keys::bg_blue};
+    SwitchableSetting<float> bg_red{0.922f, Keys::bg_red};
+    SwitchableSetting<float> bg_green{0.918f, Keys::bg_green};
+    SwitchableSetting<float> bg_blue{0.910f, Keys::bg_blue};
 
     SwitchableSetting<StereoRenderOption> render_3d{StereoRenderOption::Off, Keys::render_3d};
     SwitchableSetting<u32> factor_3d{0, Keys::factor_3d};
