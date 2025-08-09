@@ -93,7 +93,7 @@ class InputOverlayDrawableDpad(
             downButtonState = false
             leftButtonState = false
             rightButtonState = false
-            overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
+            overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE, InputOverlay.HapticSource.DPAD)
             return true
         }
         if (trackId == -1) {
@@ -128,9 +128,9 @@ class InputOverlayDrawableDpad(
             val stateChanged = upState != upButtonState || downState != downButtonState || leftState != leftButtonState || rightState != rightButtonState
 
             if(stateChanged)
-                overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+                overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY, InputOverlay.HapticSource.DPAD)
             else if(isDown)
-                overlay.hapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                overlay.hapticFeedback(HapticFeedbackConstants.CLOCK_TICK, InputOverlay.HapticSource.DPAD)
 
             return stateChanged
         }

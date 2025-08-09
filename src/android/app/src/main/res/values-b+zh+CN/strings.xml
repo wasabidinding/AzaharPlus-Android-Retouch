@@ -389,6 +389,7 @@
     <string name="emulation_occupied_state_slot">插槽 %1$d - %2$tF %2$tR</string>
     <string name="emulation_show_fps">显示 FPS</string>
     <string name="emulation_haptic_feedback">触摸反馈</string>
+    <string name="emulation_haptic_feedback_buttons_only">触摸反馈（只有按键）</string>
     <string name="emulation_overlay_options">虚拟按键选项</string>
     <string name="emulation_configure_controls">控制设置</string>
     <string name="emulation_edit_layout">编辑布局</string>

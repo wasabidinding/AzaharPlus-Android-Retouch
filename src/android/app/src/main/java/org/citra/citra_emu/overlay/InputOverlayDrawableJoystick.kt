@@ -121,7 +121,9 @@ class InputOverlayDrawableJoystick(
             }
             boundsBoxBitmap.bounds = virtBounds
             trackId = pointerId
-            overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            val source = if (joystickId == NativeLibrary.ButtonType.STICK_C)
+                InputOverlay.HapticSource.C_STICK else InputOverlay.HapticSource.JOYSTICK
+            overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY, source)
         }
         if (isActionUp) {
             if (trackId != pointerId) {
@@ -138,7 +140,9 @@ class InputOverlayDrawableJoystick(
             bounds = Rect(origBounds.left, origBounds.top, origBounds.right, origBounds.bottom)
             setInnerBounds()
             trackId = -1
-            overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
+            val source = if (joystickId == NativeLibrary.ButtonType.STICK_C)
+                InputOverlay.HapticSource.C_STICK else InputOverlay.HapticSource.JOYSTICK
+            overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE, source)
             return true
         }
         if (trackId == -1) return false
@@ -176,7 +180,9 @@ class InputOverlayDrawableJoystick(
                 this.radius = radius
                 this.angle = angle
 
-                overlay.hapticFeedback(HapticFeedbackConstants.CLOCK_TICK)
+                val source = if (joystickId == NativeLibrary.ButtonType.STICK_C)
+                    InputOverlay.HapticSource.C_STICK else InputOverlay.HapticSource.JOYSTICK
+                overlay.hapticFeedback(HapticFeedbackConstants.CLOCK_TICK, source)
             }
 
             return oldXAxis != this.xAxis && oldYAxis != this.yAxis
