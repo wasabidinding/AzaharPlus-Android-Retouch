@@ -17,11 +17,6 @@
         android:checkable="true" />
 
     <item
-        android:id="@+id/menu_haptic_feedback_buttons_only"
-        android:title="@string/emulation_haptic_feedback_buttons_only"
-        android:checkable="true" />
-
-    <item
         android:id="@+id/menu_emulation_edit_layout"
         android:title="@string/emulation_edit_layout" />
 

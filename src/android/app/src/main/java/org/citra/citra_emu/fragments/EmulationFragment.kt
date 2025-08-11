@@ -705,8 +705,6 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             findItem(R.id.menu_performance_overlay_show).isChecked =
                 BooleanSetting.PERF_OVERLAY_ENABLE.boolean
             findItem(R.id.menu_haptic_feedback).isChecked = EmulationMenuSettings.hapticFeedback
-            findItem(R.id.menu_haptic_feedback_buttons_only).isChecked =
-                EmulationMenuSettings.hapticFeedbackButtonsOnly
             findItem(R.id.menu_emulation_joystick_rel_center).isChecked =
                 EmulationMenuSettings.joystickRelCenter
             findItem(R.id.menu_emulation_dpad_slide_enable).isChecked =
@@ -729,7 +727,6 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 }
 
                 R.id.menu_haptic_feedback -> {
-                    // 开启该项将自动关闭“只有按键”，在设置层已做互斥；此处仅负责切换与UI刷新
                     EmulationMenuSettings.hapticFeedback = !EmulationMenuSettings.hapticFeedback
                     // 同步另一项的UI勾选状态
                     popupMenu.menu.findItem(R.id.menu_haptic_feedback_buttons_only).isChecked =

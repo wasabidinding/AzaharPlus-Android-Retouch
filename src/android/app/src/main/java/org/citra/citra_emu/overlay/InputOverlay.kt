@@ -16,7 +16,6 @@ import android.graphics.drawable.VectorDrawable
 import android.util.AttributeSet
 import android.util.DisplayMetrics
 import android.view.MotionEvent
-import android.view.HapticFeedbackConstants
 import android.view.SurfaceView
 import android.view.View
 import android.view.View.OnTouchListener
@@ -71,9 +70,6 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
 
         // Request focus for the overlay so it has priority on presses.
         requestFocus()
-
-        // 确保视图允许触觉反馈
-        isHapticFeedbackEnabled = true
     }
 
     override fun draw(canvas: Canvas) {
@@ -92,32 +88,9 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
         )
     }
 
-    enum class HapticSource {
-        BUTTON,
-        DPAD,
-        JOYSTICK,
-        C_STICK
-    }
-
-    private fun triggerHaptic(type: Int) {
-        // 尝试正常触觉反馈；失败则忽略系统/视图设置再试一次
-        if (!performHapticFeedback(type)) {
-            performHapticFeedback(
-                type,
-                HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
-                        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-            )
-        }
-    }
-
-    fun hapticFeedback(type: Int, source: HapticSource){
-        val buttonsOnly = EmulationMenuSettings.hapticFeedbackButtonsOnly
-        val enabled = EmulationMenuSettings.hapticFeedback || buttonsOnly
-        if (!enabled) return
-
-        if (buttonsOnly && source != HapticSource.BUTTON) return
-
-        triggerHaptic(type)
+    fun hapticFeedback(type:Int){
+        if(EmulationMenuSettings.hapticFeedback)
+            performHapticFeedback(type)
     }
 
     override fun onTouch(v: View, event: MotionEvent): Boolean {
