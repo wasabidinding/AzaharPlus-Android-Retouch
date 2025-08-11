@@ -69,7 +69,7 @@ class InputOverlayDrawableButton(
             }
             pressedState = true
             trackId = pointerId
-            overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY, InputOverlay.HapticSource.BUTTON)
+            overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             return true
         }
         if (isActionUp) {
@@ -78,7 +78,7 @@ class InputOverlayDrawableButton(
             }
             pressedState = false
             trackId = -1
-            overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE, InputOverlay.HapticSource.BUTTON)
+            overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY_RELEASE)
             return true
         }
         return false
