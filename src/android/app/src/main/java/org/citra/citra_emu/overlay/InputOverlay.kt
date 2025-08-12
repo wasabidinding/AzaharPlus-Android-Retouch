@@ -269,6 +269,8 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
         val isActionUp =
             motionEvent == MotionEvent.ACTION_UP || motionEvent == MotionEvent.ACTION_POINTER_UP
         if (isActionDown && !isTouchInputConsumed(pointerId)) {
+            // 3DS 下屏点击：增加 EFFECT_CLICK 触感（通过 VIRTUAL_KEY 映射）
+            hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             NativeLibrary.onTouchEvent(xPosition.toFloat(), yPosition.toFloat(), true)
         }
         if (isActionMove) {
