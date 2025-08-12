@@ -433,6 +433,8 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
                 }
 
                 if (!isDpadPressed && !isJoystickPressed) {
+                    // 3DS 下屏点击：增加触感反馈
+                    hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                     NativeLibrary.onTouchEvent(xPosition.toFloat(), yPosition.toFloat(), true)
                 }
             }
