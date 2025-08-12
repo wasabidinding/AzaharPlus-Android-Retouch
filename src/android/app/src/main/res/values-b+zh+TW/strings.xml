@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    </resources>
+    <!-- AzaharPlus: Auto load state and toasts (Traditional Chinese) -->
+    <string name="loading_save_state">正在載入存檔…</string>
+    <string name="game_loaded_successfully">遊戲載入完成</string>
+    <string name="game_ready">遊戲已就緒</string>
+    <string name="auto_load_state">自動讀取存檔</string>
+
+</resources>
