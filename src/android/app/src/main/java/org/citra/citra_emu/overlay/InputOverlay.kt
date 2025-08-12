@@ -19,6 +19,11 @@ import android.view.MotionEvent
 import android.view.SurfaceView
 import android.view.View
 import android.view.View.OnTouchListener
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
+import android.view.HapticFeedbackConstants
 import androidx.core.content.ContextCompat
 import androidx.preference.PreferenceManager
 import org.citra.citra_emu.CitraApplication
@@ -88,9 +93,65 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
         )
     }
 
-    fun hapticFeedback(type:Int){
-        if(EmulationMenuSettings.hapticFeedback)
-            performHapticFeedback(type)
+    fun hapticFeedback(type: Int) {
+        if (!EmulationMenuSettings.hapticFeedback) return
+
+        // Map legacy HapticFeedbackConstants to VibrationEffect predefined effects
+        val effectId = when (type) {
+            HapticFeedbackConstants.CLOCK_TICK -> VibrationEffect.EFFECT_TICK
+            HapticFeedbackConstants.VIRTUAL_KEY,
+            HapticFeedbackConstants.VIRTUAL_KEY_RELEASE -> VibrationEffect.EFFECT_CLICK
+            else -> VibrationEffect.EFFECT_CLICK
+        }
+
+        try {
+            // Android 12+ (S): Use VibratorManager when available
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as? VibratorManager
+                val vibrator = vibratorManager?.defaultVibrator
+                if (vibrator != null && vibrator.hasVibrator()) {
+                    val effect = VibrationEffect.createPredefined(effectId)
+                    vibrator.vibrate(effect)
+                    return
+                }
+            }
+
+            // Android 10+ (Q): Use predefined effects directly on Vibrator
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                if (vibrator != null && vibrator.hasVibrator()) {
+                    val effect = VibrationEffect.createPredefined(effectId)
+                    vibrator.vibrate(effect)
+                    return
+                }
+            }
+
+            // Android 8.0 - 9 (O - P): Approximate with one-shot durations
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                if (vibrator != null && vibrator.hasVibrator()) {
+                    val durationMs = if (effectId == VibrationEffect.EFFECT_TICK) 10L else 20L
+                    vibrator.vibrate(VibrationEffect.createOneShot(durationMs, VibrationEffect.DEFAULT_AMPLITUDE))
+                    return
+                }
+            }
+
+            // Legacy fallback (pre-O): Best-effort simple vibrate
+            @Suppress("DEPRECATION")
+            run {
+                val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                if (vibrator != null && vibrator.hasVibrator()) {
+                    val durationMs = if (effectId == VibrationEffect.EFFECT_TICK) 10L else 20L
+                    vibrator.vibrate(durationMs)
+                    return
+                }
+            }
+        } catch (_: Throwable) {
+            // Ignore and fallback
+        }
+
+        // Final fallback to view haptics (does not require VIBRATE permission)
+        performHapticFeedback(type)
     }
 
     override fun onTouch(v: View, event: MotionEvent): Boolean {
