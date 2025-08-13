@@ -87,6 +87,9 @@ import org.citra.citra_emu.utils.EmulationLifecycleUtil
 import org.citra.citra_emu.utils.Log
 import org.citra.citra_emu.utils.ViewUtils
 import org.citra.citra_emu.viewmodel.EmulationViewModel
+import org.citra.citra_emu.overlay.HotCornerOverlay
+import org.citra.citra_emu.utils.HotCornerSettings
+import org.citra.citra_emu.utils.TurboHelper
 
 class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.FrameCallback {
     private val preferences: SharedPreferences
@@ -226,6 +229,32 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         val position = IntSetting.PERFORMANCE_OVERLAY_POSITION.int
         updateStatsPosition(position)
 
+        // Setup hot corner overlay
+        binding.hotCornerOverlay.apply {
+            refresh()
+            setOnActionListener(object : HotCornerOverlay.OnActionListener {
+                override fun onHotCornerAction(action: HotCornerSettings.HotCornerAction) {
+                    when (action) {
+                        HotCornerSettings.HotCornerAction.PAUSE_RESUME -> togglePauseAndSyncMenu()
+                        HotCornerSettings.HotCornerAction.TOGGLE_TURBO -> TurboHelper.setTurboEnabled(!TurboHelper.isTurboSpeedEnabled())
+                        HotCornerSettings.HotCornerAction.QUICK_SAVE -> {
+                            NativeLibrary.saveState(NativeLibrary.QUICKSAVE_SLOT)
+                            Toast.makeText(requireContext(), getString(R.string.saving), Toast.LENGTH_SHORT).show()
+                        }
+                        HotCornerSettings.HotCornerAction.QUICK_LOAD -> {
+                            val wasLoaded = NativeLibrary.loadStateIfAvailable(NativeLibrary.QUICKSAVE_SLOT)
+                            val stringRes = if (wasLoaded) R.string.loading else R.string.quickload_not_found
+                            Toast.makeText(requireContext(), getString(stringRes), Toast.LENGTH_SHORT).show()
+                        }
+                        HotCornerSettings.HotCornerAction.OPEN_MENU -> {
+                            openDrawer()
+                        }
+                        HotCornerSettings.HotCornerAction.NONE -> {}
+                    }
+                }
+            })
+        }
+
         // Initialize border overlay
         initializeBorderOverlay()
 
@@ -298,23 +327,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         binding.inGameMenu.setNavigationItemSelectedListener {
             when (it.itemId) {
                 R.id.menu_emulation_pause -> {
-                    if (emulationState.isPaused) {
-                        emulationState.unpause()
-                        it.title = resources.getString(R.string.pause_emulation)
-                        it.icon = ResourcesCompat.getDrawable(
-                            resources,
-                            R.drawable.ic_pause,
-                            requireContext().theme
-                        )
-                    } else {
-                        emulationState.pause()
-                        it.title = resources.getString(R.string.resume_emulation)
-                        it.icon = ResourcesCompat.getDrawable(
-                            resources,
-                            R.drawable.ic_play,
-                            requireContext().theme
-                        )
-                    }
+                    togglePauseAndSyncMenu()
                     true
                 }
 
@@ -538,8 +551,32 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         }
     }
 
+    private fun togglePauseAndSyncMenu() {
+        val wasPaused = emulationState.isPaused
+        togglePause()
+        binding.inGameMenu.menu.findItem(R.id.menu_emulation_pause)?.let { menuItem ->
+            if (wasPaused) {
+                menuItem.title = resources.getString(R.string.pause_emulation)
+                menuItem.icon = ResourcesCompat.getDrawable(
+                    resources,
+                    R.drawable.ic_pause,
+                    requireContext().theme
+                )
+            } else {
+                menuItem.title = resources.getString(R.string.resume_emulation)
+                menuItem.icon = ResourcesCompat.getDrawable(
+                    resources,
+                    R.drawable.ic_play,
+                    requireContext().theme
+                )
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
+        // Refresh hot corners in case orientation or settings changed while paused
+        binding.hotCornerOverlay.refresh()
         Choreographer.getInstance().postFrameCallback(this)
         if (NativeLibrary.isRunning()) {
             emulationState.unpause()
@@ -864,6 +901,42 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                     true
                 }
 
+                R.id.menu_emulation_hot_corner_portrait_bl -> {
+                    showHotCornerDialog(
+                        Configuration.ORIENTATION_PORTRAIT,
+                        HotCornerSettings.HotCornerPosition.BOTTOM_LEFT,
+                        getString(R.string.emulation_hot_corner_portrait_bl)
+                    )
+                    true
+                }
+
+                R.id.menu_emulation_hot_corner_portrait_br -> {
+                    showHotCornerDialog(
+                        Configuration.ORIENTATION_PORTRAIT,
+                        HotCornerSettings.HotCornerPosition.BOTTOM_RIGHT,
+                        getString(R.string.emulation_hot_corner_portrait_br)
+                    )
+                    true
+                }
+
+                R.id.menu_emulation_hot_corner_landscape_bl -> {
+                    showHotCornerDialog(
+                        Configuration.ORIENTATION_LANDSCAPE,
+                        HotCornerSettings.HotCornerPosition.BOTTOM_LEFT,
+                        getString(R.string.emulation_hot_corner_landscape_bl)
+                    )
+                    true
+                }
+
+                R.id.menu_emulation_hot_corner_landscape_br -> {
+                    showHotCornerDialog(
+                        Configuration.ORIENTATION_LANDSCAPE,
+                        HotCornerSettings.HotCornerPosition.BOTTOM_RIGHT,
+                        getString(R.string.emulation_hot_corner_landscape_br)
+                    )
+                    true
+                }
+
                 R.id.menu_emulation_joystick_rel_center -> {
                     EmulationMenuSettings.joystickRelCenter =
                         !EmulationMenuSettings.joystickRelCenter
@@ -890,6 +963,55 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         }
 
         popupMenu.show()
+    }
+
+    // 实现包含选项与保存/取消的 UI，并写入设置后刷新热区
+    private fun showHotCornerDialog(
+        orientation: Int,
+        position: HotCornerSettings.HotCornerPosition,
+        title: String
+    ) {
+        val items = arrayOf(
+            getString(R.string.emulation_hot_corner_action_none),
+            getString(R.string.emulation_hot_corner_action_pause),
+            getString(R.string.emulation_hot_corner_action_turbo),
+            getString(R.string.emulation_hot_corner_action_quicksave),
+            getString(R.string.emulation_hot_corner_action_quickload),
+            getString(R.string.emulation_hot_corner_action_menu)
+        )
+        val current = HotCornerSettings.getAction(orientation, position)
+        var selectedIndex = when (current) {
+            HotCornerSettings.HotCornerAction.NONE -> 0
+            HotCornerSettings.HotCornerAction.PAUSE_RESUME -> 1
+            HotCornerSettings.HotCornerAction.TOGGLE_TURBO -> 2
+            HotCornerSettings.HotCornerAction.QUICK_SAVE -> 3
+            HotCornerSettings.HotCornerAction.QUICK_LOAD -> 4
+            HotCornerSettings.HotCornerAction.OPEN_MENU -> 5
+        }
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(title)
+            .setSingleChoiceItems(items, selectedIndex) { _, which ->
+                selectedIndex = which
+            }
+            .setPositiveButton(R.string.save) { dialog, _ ->
+                val action = when (selectedIndex) {
+                    0 -> HotCornerSettings.HotCornerAction.NONE
+                    1 -> HotCornerSettings.HotCornerAction.PAUSE_RESUME
+                    2 -> HotCornerSettings.HotCornerAction.TOGGLE_TURBO
+                    3 -> HotCornerSettings.HotCornerAction.QUICK_SAVE
+                    4 -> HotCornerSettings.HotCornerAction.QUICK_LOAD
+                    5 -> HotCornerSettings.HotCornerAction.OPEN_MENU
+                    else -> HotCornerSettings.HotCornerAction.NONE
+                }
+                HotCornerSettings.setAction(orientation, position, action)
+                binding.hotCornerOverlay.refresh()
+                dialog.dismiss()
+            }
+            .setNegativeButton(android.R.string.cancel) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
     }
 
     private fun showAmiiboMenu() {
