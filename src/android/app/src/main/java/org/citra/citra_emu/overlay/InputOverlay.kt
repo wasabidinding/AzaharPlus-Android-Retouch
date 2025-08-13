@@ -154,6 +154,52 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
         performHapticFeedback(type)
     }
 
+    private fun dpToPx(dp: Float): Float {
+        return dp * resources.displayMetrics.density
+    }
+
+    private fun getBottomScreenRect(): Rect? {
+        try {
+            val coords = NativeLibrary.getScreenLayout()
+            if (coords != null && coords.size >= 8) {
+                val leftX = coords[4]
+                val topY = coords[5]
+                val rightX = coords[6]
+                val bottomY = coords[7]
+                val left = if (leftX <= rightX) leftX else rightX
+                val right = if (leftX <= rightX) rightX else leftX
+                val top = if (topY <= bottomY) topY else bottomY
+                val bottom = if (topY <= bottomY) bottomY else topY
+                return Rect(left, top, right, bottom)
+            }
+        } catch (_: Throwable) {
+        }
+
+        val w = width.toFloat()
+        val h = height.toFloat()
+        if (w <= 0f || h <= 0f) return null
+
+        return if (NativeLibrary.isPortraitMode) {
+            val screenWidth = w * 0.9f
+            val startX = (w - screenWidth) / 2f
+            val topScreenHeight = screenWidth / 1.67f
+            val topScreenTop = h * 0.1f
+            val gap = dpToPx(8f)
+            val bottomTop = topScreenTop + topScreenHeight + gap
+            val bottomHeight = screenWidth / 1.33f
+            Rect(startX.toInt(), bottomTop.toInt(), (startX + screenWidth).toInt(), (bottomTop + bottomHeight).toInt())
+        } else {
+            val screenWidth = w * 0.8f
+            val startX = (w - screenWidth) / 2f
+            val topScreenTop = h * 0.05f
+            val topScreenHeight = h * 0.45f
+            val gap = dpToPx(8f)
+            val bottomTop = topScreenTop + topScreenHeight + gap
+            val bottomHeight = h * 0.4f
+            Rect(startX.toInt(), bottomTop.toInt(), (startX + screenWidth).toInt(), (bottomTop + bottomHeight).toInt())
+        }
+    }
+
     override fun onTouch(v: View, event: MotionEvent): Boolean {
         if (isInEditMode) {
             return onTouchWhileEditing(event)
@@ -269,8 +315,11 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
         val isActionUp =
             motionEvent == MotionEvent.ACTION_UP || motionEvent == MotionEvent.ACTION_POINTER_UP
         if (isActionDown && !isTouchInputConsumed(pointerId)) {
-            // 3DS 下屏点击：增加 EFFECT_CLICK 触感（通过 VIRTUAL_KEY 映射）
-            hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            val bottomRect = getBottomScreenRect()
+            if (bottomRect != null && bottomRect.contains(xPosition, yPosition)) {
+                // 仅在下屏区域内触发 EFFECT_CLICK（通过 VIRTUAL_KEY 映射）
+                hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            }
             NativeLibrary.onTouchEvent(xPosition.toFloat(), yPosition.toFloat(), true)
         }
         if (isActionMove) {
