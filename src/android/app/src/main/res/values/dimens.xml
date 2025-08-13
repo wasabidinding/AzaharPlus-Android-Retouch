@@ -18,5 +18,8 @@
     <dimen name="dialog_margin">20dp</dimen>
 
     <!-- Touch target for hot corners -->
-    <dimen name="hot_corner_size">75 dp</dimen>
+    <dimen name="hot_corner_size">75dp</dimen>
+    <dimen name="hot_corner_bottom_center_width">150dp</dimen>
+    <dimen name="hot_corner_bottom_center_height">50dp</dimen>
+    <dimen name="hot_corner_hud_text_size">12dp</dimen>
 </resources>
