@@ -16,6 +16,7 @@ import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
+import android.os.BatteryManager
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
@@ -251,6 +252,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                         }
                         HotCornerSettings.HotCornerAction.NONE -> {}
                     }
+                }
+            })
+            setOnPressListener(object : HotCornerOverlay.OnPressListener {
+                override fun onBottomCenterPress(isPressed: Boolean) {
+                    setHotCornerHudVisible(isPressed)
                 }
             })
         }
@@ -528,6 +534,42 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         }
 
         setInsets()
+    }
+
+    private fun setHotCornerHudVisible(visible: Boolean) {
+        if (visible) {
+            updateHotCornerHud()
+            binding.hudTimeText.visibility = View.VISIBLE
+            binding.hudBatteryText.visibility = View.VISIBLE
+        } else {
+            binding.hudTimeText.visibility = View.GONE
+            binding.hudBatteryText.visibility = View.GONE
+        }
+    }
+
+    private fun updateHotCornerHud() {
+        val timeText = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault()).format(java.util.Date())
+        binding.hudTimeText.text = timeText
+        val bm = requireContext().getSystemService(Context.BATTERY_SERVICE) as BatteryManager
+        val level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+        binding.hudBatteryText.text = String.format("%d%%", level)
+        val orientation = resources.configuration.orientation
+        if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            // Landscape: white, 100% opacity
+            binding.hudTimeText.setTextColor(android.graphics.Color.WHITE)
+            binding.hudBatteryText.setTextColor(android.graphics.Color.WHITE)
+            val outlineColor = android.graphics.Color.argb(128, 0, 0, 0)
+            binding.hudTimeText.setShadowLayer(3f, 0f, 0f, outlineColor)
+            binding.hudBatteryText.setShadowLayer(3f, 0f, 0f, outlineColor)
+        } else {
+            // Portrait: black, 50% opacity
+            val semiBlack = android.graphics.Color.argb(128, 0, 0, 0)
+            binding.hudTimeText.setTextColor(semiBlack)
+            binding.hudBatteryText.setTextColor(semiBlack)
+            // Remove shadow/outline in portrait
+            binding.hudTimeText.setShadowLayer(0f, 0f, 0f, 0)
+            binding.hudBatteryText.setShadowLayer(0f, 0f, 0f, 0)
+        }
     }
 
     fun isDrawerOpen(): Boolean {

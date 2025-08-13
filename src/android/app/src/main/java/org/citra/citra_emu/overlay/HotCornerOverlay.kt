@@ -5,7 +5,9 @@ package org.citra.citra_emu.overlay
 
 import android.content.Context
 import android.util.AttributeSet
+import android.content.res.Configuration
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.widget.FrameLayout
 import org.citra.citra_emu.R
@@ -27,9 +29,19 @@ class HotCornerOverlay @JvmOverloads constructor(
     }
 
     private var actionListener: OnActionListener? = null
+    
+    interface OnPressListener {
+        fun onBottomCenterPress(isPressed: Boolean)
+    }
+
+    private var pressListener: OnPressListener? = null
 
     fun setOnActionListener(listener: OnActionListener) {
         actionListener = listener
+    }
+    
+    fun setOnPressListener(listener: OnPressListener) {
+        pressListener = listener
     }
 
     /**
@@ -40,6 +52,13 @@ class HotCornerOverlay @JvmOverloads constructor(
 
         val sizePx = resources.getDimensionPixelSize(R.dimen.hot_corner_size)
         val orientation = resources.configuration.orientation
+        val baseBottomCenterWidth = resources.getDimensionPixelSize(R.dimen.hot_corner_bottom_center_width)
+        val bottomCenterHeight = resources.getDimensionPixelSize(R.dimen.hot_corner_bottom_center_height)
+        val bottomCenterWidth = if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+            baseBottomCenterWidth * 2
+        } else {
+            baseBottomCenterWidth
+        }
 
         // Bottom-Right corner
         val brAction = HotCornerSettings.getAction(
@@ -58,6 +77,9 @@ class HotCornerOverlay @JvmOverloads constructor(
         if (blAction != HotCornerSettings.HotCornerAction.NONE) {
             addView(createCornerView(sizePx, Gravity.BOTTOM or Gravity.START, blAction))
         }
+        
+        // Bottom-Center hot corner (press-and-hold style)
+        addView(createBottomCenterPressView(bottomCenterWidth, bottomCenterHeight))
     }
 
     private fun createCornerView(
@@ -75,6 +97,29 @@ class HotCornerOverlay @JvmOverloads constructor(
             }
             layoutParams = LayoutParams(sizePx, sizePx, gravity)
             setOnClickListener { actionListener?.onHotCornerAction(action) }
+        }
+    }
+
+    private fun createBottomCenterPressView(widthPx: Int, heightPx: Int): View {
+        return View(context).apply {
+            isClickable = true
+            isFocusable = false
+            // Transparent touch area
+            background = null
+            layoutParams = LayoutParams(widthPx, heightPx, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL)
+            setOnTouchListener { _, event ->
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        pressListener?.onBottomCenterPress(true)
+                        true
+                    }
+                    MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                        pressListener?.onBottomCenterPress(false)
+                        true
+                    }
+                    else -> true
+                }
+            }
         }
     }
 }
