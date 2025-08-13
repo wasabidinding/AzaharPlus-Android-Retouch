@@ -120,7 +120,11 @@ class GameAdapter(private val activity: AppCompatActivity, private val inflater:
                 .setPositiveButton(android.R.string.ok, null)
                 .show()
         } else {
-            showAboutGameDialog(context, holder.game, holder, view)
+            // 使用新的 BottomSheetDialogFragment 以支持选择自定义图标
+            org.citra.citra_emu.fragments.AboutGameBottomSheet
+                .newInstance(holder.game)
+                .show((activity as androidx.fragment.app.FragmentActivity).supportFragmentManager,
+                    org.citra.citra_emu.fragments.AboutGameBottomSheet.TAG)
         }
         return true
     }
@@ -320,76 +324,7 @@ class GameAdapter(private val activity: AppCompatActivity, private val inflater:
         popup.show()
     }
 
-    private fun showAboutGameDialog(context: Context, game: Game, holder: GameViewHolder, view: View) {
-        val bottomSheetView = inflater.inflate(R.layout.dialog_about_game, null)
-
-        val bottomSheetDialog = BottomSheetDialog(context)
-        bottomSheetDialog.setContentView(bottomSheetView)
-
-        bottomSheetView.findViewById<TextView>(R.id.about_game_title).text = game.title
-        bottomSheetView.findViewById<TextView>(R.id.about_game_company).text = game.company
-        bottomSheetView.findViewById<TextView>(R.id.about_game_region).text = game.regions
-        bottomSheetView.findViewById<TextView>(R.id.about_game_id).text = "ID: " + String.format("%016X", game.titleId)
-        bottomSheetView.findViewById<TextView>(R.id.about_game_filename).text = "File: " + game.filename
-        GameIconUtils.loadGameIcon(activity, game, bottomSheetView.findViewById(R.id.game_icon))
-
-        // 设置自动加载存档开关的状态
-        val preferences = PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext)
-        val autoLoadStateKey = "auto_load_state_${game.titleId}"
-        val autoLoadStateSwitch = bottomSheetView.findViewById<com.google.android.material.switchmaterial.SwitchMaterial>(R.id.auto_load_state_switch)
-        
-        // 默认开启自动加载存档
-        val isAutoLoadEnabled = preferences.getBoolean(autoLoadStateKey, true)
-        autoLoadStateSwitch.isChecked = isAutoLoadEnabled
-        
-        // 监听开关状态变化并保存
-        autoLoadStateSwitch.setOnCheckedChangeListener { _, isChecked ->
-            preferences.edit().putBoolean(autoLoadStateKey, isChecked).apply()
-        }
-
-        bottomSheetView.findViewById<MaterialButton>(R.id.about_game_play).setOnClickListener {
-            val action = HomeNavigationDirections.actionGlobalEmulationActivity(holder.game)
-            view.findNavController().navigate(action)
-        }
-
-        bottomSheetView.findViewById<MaterialButton>(R.id.game_shortcut).setOnClickListener {
-            val shortcutManager = activity.getSystemService(ShortcutManager::class.java)
-
-            CoroutineScope(Dispatchers.IO).launch {
-                val bitmap = (bottomSheetView.findViewById<ImageView>(R.id.game_icon).drawable as BitmapDrawable).bitmap
-                val icon = Icon.createWithBitmap(bitmap)
-
-                val shortcut = ShortcutInfo.Builder(context, game.title)
-                    .setShortLabel(game.title)
-                    .setIcon(icon)
-                    .setIntent(game.launchIntent.apply {
-                        putExtra("launched_from_shortcut", true)
-                    })
-                    .build()
-                shortcutManager.requestPinShortcut(shortcut, null)
-            }
-        }
-
-        bottomSheetView.findViewById<MaterialButton>(R.id.cheats).setOnClickListener {
-            val action = CheatsFragmentDirections.actionGlobalCheatsFragment(holder.game.titleId)
-            view.findNavController().navigate(action)
-            bottomSheetDialog.dismiss()
-        }
-
-        bottomSheetView.findViewById<MaterialButton>(R.id.menu_button_open).setOnClickListener {
-            showOpenContextMenu(it, game)
-        }
-
-        bottomSheetView.findViewById<MaterialButton>(R.id.menu_button_uninstall).setOnClickListener {
-            showUninstallContextMenu(it, game, bottomSheetDialog)
-        }
-
-        val bottomSheetBehavior = bottomSheetDialog.getBehavior()
-        bottomSheetBehavior.skipCollapsed = true
-        bottomSheetBehavior.state = BottomSheetBehavior.STATE_EXPANDED
-
-        bottomSheetDialog.show()
-    }
+    // 旧的 showAboutGameDialog 被新的 AboutGameBottomSheet 取代
 
     private fun isValidGame(extension: String): Boolean {
         return Game.badExtensions.stream()
