@@ -316,6 +316,7 @@
     <string name="loading">加载中…</string>
     <string name="next">下一步</string>
     <string name="back">上一步</string>
+    <string name="save">保存</string>
     <string name="learn_more">了解更多</string>
     <string name="close">关闭</string>
     <string name="reset_to_default">恢复默认</string>
@@ -376,6 +377,17 @@
     <string name="emulation_show_fps">显示 FPS</string>
     <string name="emulation_haptic_feedback">触摸反馈</string>
     <string name="emulation_overlay_options">虚拟按键选项</string>
+    <string name="emulation_hot_corner_settings">热区设置</string>
+    <string name="emulation_hot_corner_portrait_bl">竖屏 • 左下角</string>
+    <string name="emulation_hot_corner_portrait_br">竖屏 • 右下角</string>
+    <string name="emulation_hot_corner_landscape_bl">横屏 • 左下角</string>
+    <string name="emulation_hot_corner_landscape_br">横屏 • 右下角</string>
+    <string name="emulation_hot_corner_action_none">无</string>
+    <string name="emulation_hot_corner_action_pause">暂停</string>
+    <string name="emulation_hot_corner_action_turbo">加速</string>
+    <string name="emulation_hot_corner_action_quicksave">快速保存</string>
+    <string name="emulation_hot_corner_action_quickload">快速加载</string>
+    <string name="emulation_hot_corner_action_menu">弹出菜单</string>
     <string name="emulation_configure_controls">控制设置</string>
     <string name="emulation_edit_layout">编辑布局</string>
     <string name="emulation_done">完成</string>

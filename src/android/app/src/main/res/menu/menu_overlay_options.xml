@@ -106,6 +106,27 @@
             android:title="@string/emulation_control_dpad_slide_enable" />
     </group>
 
+    <!-- Hot corner settings (second last item) -->
+    <item
+        android:id="@+id/menu_emulation_hot_corner_settings"
+        android:title="@string/emulation_hot_corner_settings"
+        android:icon="@drawable/ic_settings">
+        <menu>
+            <item
+                android:id="@+id/menu_emulation_hot_corner_portrait_bl"
+                android:title="@string/emulation_hot_corner_portrait_bl" />
+            <item
+                android:id="@+id/menu_emulation_hot_corner_portrait_br"
+                android:title="@string/emulation_hot_corner_portrait_br" />
+            <item
+                android:id="@+id/menu_emulation_hot_corner_landscape_bl"
+                android:title="@string/emulation_hot_corner_landscape_bl" />
+            <item
+                android:id="@+id/menu_emulation_hot_corner_landscape_br"
+                android:title="@string/emulation_hot_corner_landscape_br" />
+        </menu>
+    </item>
+
     <item
         android:id="@+id/menu_emulation_reset_overlay"
         android:title="@string/emulation_touch_overlay_reset" />

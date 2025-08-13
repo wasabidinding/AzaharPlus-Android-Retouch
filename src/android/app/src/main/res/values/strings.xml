@@ -364,6 +364,7 @@
     <string name="auto_load_state">Auto Load State</string>
     <string name="next">Next</string>
     <string name="back">Back</string>
+    <string name="save">Save</string>
     <string name="learn_more">Learn More</string>
     <string name="close">Close</string>
     <string name="reset_to_default">Reset to Default</string>
@@ -424,6 +425,17 @@
     <string name="emulation_show_fps">Show FPS</string>
     <string name="emulation_haptic_feedback">Haptic Feedback</string>
     <string name="emulation_overlay_options">Overlay Options</string>
+    <string name="emulation_hot_corner_settings">Hot Corners Settings</string>
+    <string name="emulation_hot_corner_portrait_bl">Portrait • Bottom-Left</string>
+    <string name="emulation_hot_corner_portrait_br">Portrait • Bottom-Right</string>
+    <string name="emulation_hot_corner_landscape_bl">Landscape • Bottom-Left</string>
+    <string name="emulation_hot_corner_landscape_br">Landscape • Bottom-Right</string>
+    <string name="emulation_hot_corner_action_none">None</string>
+    <string name="emulation_hot_corner_action_pause">Pause</string>
+    <string name="emulation_hot_corner_action_turbo">Turbo</string>
+    <string name="emulation_hot_corner_action_quicksave">Quick Save</string>
+    <string name="emulation_hot_corner_action_quickload">Quick Load</string>
+    <string name="emulation_hot_corner_action_menu">Open Menu</string>
     <string name="emulation_configure_controls">Configure Controls</string>
     <string name="emulation_edit_layout">Edit Layout</string>
     <string name="emulation_done">Done</string>
