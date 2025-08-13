@@ -158,6 +158,8 @@
                 app:icon="@drawable/ic_shortcut"
                 app:iconGravity="textStart" />
 
+            
+
         </LinearLayout>
 
         <LinearLayout

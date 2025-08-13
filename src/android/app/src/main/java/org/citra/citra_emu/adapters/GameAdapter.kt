@@ -147,7 +147,11 @@ class GameAdapter(
                 .setPositiveButton(android.R.string.ok, null)
                 .show()
         } else {
-            showAboutGameDialog(context, holder.game, holder, view)
+            // 使用新的 BottomSheetDialogFragment 以支持选择自定义图标
+            org.citra.citra_emu.fragments.AboutGameBottomSheet
+                .newInstance(holder.game)
+                .show((activity as androidx.fragment.app.FragmentActivity).supportFragmentManager,
+                    org.citra.citra_emu.fragments.AboutGameBottomSheet.TAG)
         }
         return true
     }
