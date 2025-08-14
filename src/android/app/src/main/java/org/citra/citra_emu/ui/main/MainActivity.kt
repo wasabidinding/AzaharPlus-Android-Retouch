@@ -66,6 +66,7 @@ import org.citra.citra_emu.utils.PermissionsHandler
 import org.citra.citra_emu.utils.ThemeUtil
 import org.citra.citra_emu.viewmodel.GamesViewModel
 import org.citra.citra_emu.viewmodel.HomeViewModel
+import org.citra.citra_emu.utils.ShortcutHelper
 
 class MainActivity : AppCompatActivity(), ThemeProvider {
     private lateinit var binding: ActivityMainBinding
@@ -185,6 +186,14 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
             launch {
                 repeatOnLifecycle(Lifecycle.State.CREATED) {
                     homeViewModel.isPickingUserDir.collect { checkUserPermissions() }
+                }
+            }
+            launch {
+                repeatOnLifecycle(Lifecycle.State.STARTED) {
+                    gamesViewModel.games.collect { games ->
+                        // 动态快捷方式：根据游戏库变化更新 Top-N
+                        ShortcutHelper.updateDynamicShortcuts(this@MainActivity.applicationContext, games)
+                    }
                 }
             }
         }

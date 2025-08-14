@@ -61,6 +61,7 @@ import org.citra.citra_emu.utils.FileUtil
 import org.citra.citra_emu.utils.GameIconUtils
 import org.citra.citra_emu.utils.Log
 import org.citra.citra_emu.viewmodel.GamesViewModel
+import org.citra.citra_emu.utils.ShortcutHelper
 
 class GameAdapter(
     private val activity: AppCompatActivity,
@@ -128,6 +129,14 @@ class GameAdapter(
 
         val action = HomeNavigationDirections.actionGlobalEmulationActivity(holder.game)
         view.findNavController().navigate(action)
+
+        // 后台刷新动态快捷方式的排序（最近游玩已写入）
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val games = ViewModelProvider(activity)[GamesViewModel::class.java].games.value
+                ShortcutHelper.updateDynamicShortcuts(view.context.applicationContext, games)
+            } catch (_: Exception) { }
+        }
     }
 
     /**
