@@ -14,6 +14,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.InputDevice
 import android.view.KeyEvent
@@ -72,6 +73,7 @@ class EmulationActivity : AppCompatActivity() {
 
 
     private var isEmulationRunning: Boolean = false
+    private var lastAutoSaveUptimeMs: Long = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -129,6 +131,34 @@ class EmulationActivity : AppCompatActivity() {
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
         enableFullscreenImmersive()
+    }
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // 当用户通过 Home/多任务等方式离开应用时，优先在离开前保存状态
+        tryAutoSave("onUserLeaveHint")
+    }
+
+    override fun onStop() {
+        // 兜底：某些设备/场景可能不触发 onUserLeaveHint，这里在真正不可见时再尝试一次
+        tryAutoSave("onStop")
+        super.onStop()
+    }
+
+    private fun tryAutoSave(source: String) {
+        if (!NativeLibrary.isRunning() || isChangingConfigurations) return
+        val now = SystemClock.uptimeMillis()
+        // 简单节流，避免短时间内重复触发保存
+        if (now - lastAutoSaveUptimeMs < 2000L) return
+        lastAutoSaveUptimeMs = now
+
+        val slotForAutoSave = NativeLibrary.SAVESTATE_SLOT_COUNT - 1 // 使用最后一个槽位（当前为10）
+        try {
+            NativeLibrary.saveState(slotForAutoSave)
+            Log.d("EmulationActivity", "Auto-saved state from $source (slot $slotForAutoSave)")
+        } catch (e: Exception) {
+            Log.e("EmulationActivity", "Failed to auto-save from $source", e)
+        }
     }
 
     public override fun onRestart() {
