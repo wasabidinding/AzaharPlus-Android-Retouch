@@ -106,10 +106,12 @@ class EmulationActivity : AppCompatActivity() {
         )
 
         EmulationLifecycleUtil.addShutdownHook(hook = {
-            if (intent.getBooleanExtra("launched_from_shortcut", false)) {
-                finishAffinity()
-            } else {
-                this.finish()
+            if (!suppressFinishOnCloseGame) {
+                if (intent.getBooleanExtra("launched_from_shortcut", false)) {
+                    finishAffinity()
+                } else {
+                    this.finish()
+                }
             }
         })
 
@@ -181,6 +183,39 @@ class EmulationActivity : AppCompatActivity() {
         isEmulationRunning = false
         instance = null
         super.onDestroy()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        // 更新当前 Intent，便于下游读取
+        setIntent(intent)
+
+        // 解析目标游戏
+        val targetUri: Uri? = intent.data
+        val currentFragment = emulationFragment
+        val currentGame = currentFragment.getCurrentGame()
+        val targetGame: org.citra.citra_emu.model.Game? = if (targetUri != null) {
+            val ext = org.citra.citra_emu.utils.FileUtil.getExtension(targetUri)
+            if (org.citra.citra_emu.model.Game.extensions.contains(ext)) {
+                org.citra.citra_emu.utils.GameHelper.getGame(targetUri, isInstalled = false, addedToLibrary = false)
+            } else null
+        } else {
+            // 兼容通过导航参数的方式（从快捷方式 Intent extras 注入 game）
+            intent.extras?.getParcelable("game")
+        }
+
+        // 如果目标无效，忽略；如果相同游戏，直接返回；否则切换
+        if (targetGame == null) {
+            return
+        }
+        if (currentGame.titleId == targetGame.titleId) {
+            // 相同游戏，不做切换
+            return
+        }
+
+        // 切换到新游戏，不销毁 Activity，也不重建导航图
+        currentFragment.startNewGame(targetGame)
+        isEmulationRunning = true
     }
 
     override fun onRequestPermissionsResult(
@@ -612,5 +647,9 @@ class EmulationActivity : AppCompatActivity() {
         fun isRunning(): Boolean {
             return instance?.isEmulationRunning ?: false
         }
+
+        // 当通过快捷方式切换游戏时，临时抑制关闭钩子里的 finish 行为
+        @JvmStatic
+        var suppressFinishOnCloseGame: Boolean = false
     }
 }
