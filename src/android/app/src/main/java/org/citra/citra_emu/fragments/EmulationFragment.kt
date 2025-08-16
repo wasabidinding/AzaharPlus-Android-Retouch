@@ -181,6 +181,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         binding.doneControlConfig.setOnClickListener {
             binding.doneControlConfig.visibility = View.GONE
             binding.surfaceInputOverlay.setIsInEditMode(false)
+            // 恢复热区
+            binding.hotCornerOverlay.visibility = View.VISIBLE
+            binding.hotCornerOverlay.refresh()
         }
 
         // Setup hot corner overlay
@@ -1123,9 +1126,14 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         if (binding.surfaceInputOverlay.isInEditMode) {
             binding.doneControlConfig.visibility = View.GONE
             binding.surfaceInputOverlay.setIsInEditMode(false)
+            // 恢复热区
+            binding.hotCornerOverlay.visibility = View.VISIBLE
+            binding.hotCornerOverlay.refresh()
         } else {
             binding.doneControlConfig.visibility = View.VISIBLE
             binding.surfaceInputOverlay.setIsInEditMode(true)
+            // 进入编辑模式时隐藏所有热区，避免拦截触控
+            binding.hotCornerOverlay.visibility = View.GONE
         }
     }
 
