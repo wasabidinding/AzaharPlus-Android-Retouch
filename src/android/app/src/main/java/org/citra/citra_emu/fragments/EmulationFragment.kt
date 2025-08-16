@@ -587,6 +587,41 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         binding.drawerLayout.open()
     }
 
+    fun startNewGame(newGame: Game) {
+        // 停止当前仿真（若仍在运行）
+        if (NativeLibrary.isRunning()) {
+            try {
+                emulationState.stop()
+            } catch (_: Exception) {
+            }
+        }
+
+        // 更新数据
+        game = newGame
+        emulationState = EmulationState(newGame.path)
+
+        // 更新 UI 预览与标题
+        if (_binding != null) {
+            try {
+                binding.inGameMenu.getHeaderView(0).apply {
+                    findViewById<TextView>(R.id.text_game_title).text = newGame.title
+                    val iconView = findViewById<ImageView>(R.id.game_icon)
+                    GameIconUtils.loadGameIcon(requireActivity(), newGame, iconView)
+                }
+                GameIconUtils.loadGameIcon(requireActivity(), newGame, binding.loadingImage)
+                binding.loadingTitle.text = newGame.title
+            } catch (_: Exception) {
+            }
+        }
+
+        // 启动新游戏
+        if (DirectoryInitialization.areCitraDirectoriesReady()) {
+            emulationState.run(false)
+        } else {
+            setupCitraDirectoriesThenStartEmulation()
+        }
+    }
+
 
     private fun togglePause() {
         if (emulationState.isPaused) {
