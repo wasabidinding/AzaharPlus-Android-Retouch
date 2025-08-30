@@ -266,6 +266,15 @@ class SettingsFragmentPresenter(private val fragmentView: SettingsFragmentView) 
                     BooleanSetting.ANDROID_HIDE_IMAGES.defaultValue
                 )
             )
+            add(
+                SwitchSetting(
+                    BooleanSetting.AUTO_SAVE_ON_EXIT,
+                    R.string.auto_save_on_exit,
+                    R.string.auto_save_on_exit_description,
+                    BooleanSetting.AUTO_SAVE_ON_EXIT.key,
+                    BooleanSetting.AUTO_SAVE_ON_EXIT.defaultValue
+                )
+            )
         }
     }
 
