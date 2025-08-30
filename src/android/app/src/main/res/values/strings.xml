@@ -273,6 +273,8 @@
     <string name="frame_limit_slider_description">Specifies the percentage to limit emulation speed. With the default of 100% emulation will be limited to normal speed. Values higher or lower will increase or decrease the speed limit.</string>
     <string name="turbo_limit">Turbo Speed Limit</string>
     <string name="turbo_limit_description">Emulation speed limit used while the turbo hotkey is active.</string>
+    <string name="auto_save_on_exit">Auto Save on Exit</string>
+    <string name="auto_save_on_exit_description">Automatically save the game state when leaving the app (returning to home screen or switching apps).</string>
     <string name="expand_to_cutout_area">Expand to Cutout Area</string>
     <string name="expand_to_cutout_area_description">Expands the display area to include the cutout (or notch) area.</string>
     <string name="internal_resolution">Internal Resolution</string>
