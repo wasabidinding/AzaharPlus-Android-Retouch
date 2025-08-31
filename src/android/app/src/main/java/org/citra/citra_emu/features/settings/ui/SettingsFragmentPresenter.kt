@@ -1366,6 +1366,54 @@ class SettingsFragmentPresenter(private val fragmentView: SettingsFragmentView) 
                     Settings.SECTION_CUSTOM_PORTRAIT
                 )
             )
+
+            add(
+                RunnableSetting(
+                    R.string.reset_layout_defaults,
+                    R.string.reset_layout_defaults_desc,
+                    false,
+                    R.drawable.ic_restore,
+                    {
+                        MaterialAlertDialogBuilder(settingsAdapter.context)
+                            .setTitle(R.string.reset_layout_confirmation)
+                            .setMessage(R.string.reset_layout_confirmation_message)
+                            .setPositiveButton(android.R.string.ok) { _, _ ->
+                                val intTargets = listOf(
+                                    // portrait layout option
+                                    IntSetting.PORTRAIT_SCREEN_LAYOUT,
+                                    // portrait custom positions and sizes
+                                    IntSetting.PORTRAIT_TOP_X,
+                                    IntSetting.PORTRAIT_TOP_Y,
+                                    IntSetting.PORTRAIT_TOP_WIDTH,
+                                    IntSetting.PORTRAIT_TOP_HEIGHT,
+                                    IntSetting.PORTRAIT_BOTTOM_X,
+                                    IntSetting.PORTRAIT_BOTTOM_Y,
+                                    IntSetting.PORTRAIT_BOTTOM_WIDTH,
+                                    IntSetting.PORTRAIT_BOTTOM_HEIGHT,
+                                    // layout page items shown in screenshot
+                                    IntSetting.SCREEN_LAYOUT,
+                                    IntSetting.SMALL_SCREEN_POSITION,
+                                    IntSetting.SCREEN_GAP,
+                                )
+
+                                intTargets.forEach { setting ->
+                                    setting.int = setting.defaultValue
+                                    fragmentView.putSetting(setting)
+                                }
+
+                                // Float setting: large screen proportion
+                                FloatSetting.LARGE_SCREEN_PROPORTION.float =
+                                    FloatSetting.LARGE_SCREEN_PROPORTION.defaultValue
+                                fragmentView.putSetting(FloatSetting.LARGE_SCREEN_PROPORTION)
+
+                                fragmentView.onSettingChanged()
+                                fragmentView.loadSettingsList()
+                            }
+                            .setNegativeButton(android.R.string.cancel, null)
+                            .show()
+                    }
+                )
+            )
         }
     }
 

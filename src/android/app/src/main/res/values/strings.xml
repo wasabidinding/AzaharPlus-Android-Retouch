@@ -549,6 +549,10 @@
     <string name="emulation_custom_layout_y">Y-Position</string>
     <string name="emulation_custom_layout_width">Width</string>
     <string name="emulation_custom_layout_height">Height</string>
+    <string name="reset_layout_defaults">Reset Layout to Defaults</string>
+    <string name="reset_layout_defaults_desc">Restore portrait custom layout positions and sizes to app defaults</string>
+    <string name="reset_layout_confirmation">Reset Layout</string>
+    <string name="reset_layout_confirmation_message">This will restore portrait layout values to defaults. Continue?</string>
     <string name="emulation_cycle_landscape_layouts">Cycle Layouts</string>
     <string name="emulation_swap_screens">Swap Screens</string>
     <string name="emulation_rotate_upright">Rotate Screen Upright</string>
