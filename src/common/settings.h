@@ -508,10 +508,10 @@ struct Values {
     SwitchableSetting<LayoutOption> layout_option{LayoutOption::Default, "layout_option"};
     SwitchableSetting<bool> swap_screen{false, "swap_screen"};
     SwitchableSetting<bool> upright_screen{false, "upright_screen"};
-    SwitchableSetting<float, true> large_screen_proportion{4.f, 1.f, 16.f,
+    SwitchableSetting<float, true> large_screen_proportion{2.65f, 1.f, 16.f,
                                                            "large_screen_proportion"};
-    SwitchableSetting<int> screen_gap{0, "screen_gap"};
-    SwitchableSetting<SmallScreenPosition> small_screen_position{SmallScreenPosition::BottomRight,
+    SwitchableSetting<int> screen_gap{2, "screen_gap"};
+    SwitchableSetting<SmallScreenPosition> small_screen_position{SmallScreenPosition::TopRight,
                                                                  "small_screen_position"};
     Setting<u16> custom_top_x{0, "custom_top_x"};
     Setting<u16> custom_top_y{0, "custom_top_y"};
@@ -531,15 +531,15 @@ struct Values {
     Setting<u16> screen_bottom_topbottom_padding{0, "screen_bottom_topbottom_padding"};
 
     SwitchableSetting<PortraitLayoutOption> portrait_layout_option{
-        PortraitLayoutOption::PortraitTopFullWidth, "portrait_layout_option"};
-    Setting<u16> custom_portrait_top_x{0, "custom_portrait_top_x"};
-    Setting<u16> custom_portrait_top_y{0, "custom_portrait_top_y"};
-    Setting<u16> custom_portrait_top_width{800, "custom_portrait_top_width"};
-    Setting<u16> custom_portrait_top_height{480, "custom_portrait_top_height"};
-    Setting<u16> custom_portrait_bottom_x{80, "custom_portrait_bottom_x"};
-    Setting<u16> custom_portrait_bottom_y{500, "custom_portrait_bottom_y"};
-    Setting<u16> custom_portrait_bottom_width{640, "custom_portrait_bottom_width"};
-    Setting<u16> custom_portrait_bottom_height{480, "custom_portrait_bottom_height"};
+        PortraitLayoutOption::PortraitCustomLayout, "portrait_layout_option"};
+    Setting<u16> custom_portrait_top_x{20, "custom_portrait_top_x"};
+    Setting<u16> custom_portrait_top_y{128, "custom_portrait_top_y"};
+    Setting<u16> custom_portrait_top_width{1040, "custom_portrait_top_width"};
+    Setting<u16> custom_portrait_top_height{624, "custom_portrait_top_height"};
+    Setting<u16> custom_portrait_bottom_x{108, "custom_portrait_bottom_x"};
+    Setting<u16> custom_portrait_bottom_y{778, "custom_portrait_bottom_y"};
+    Setting<u16> custom_portrait_bottom_width{864, "custom_portrait_bottom_width"};
+    Setting<u16> custom_portrait_bottom_height{648, "custom_portrait_bottom_height"};
 
     SwitchableSetting<float> bg_red{0.922f, "bg_red"};
     SwitchableSetting<float> bg_green{0.918f, "bg_green"};

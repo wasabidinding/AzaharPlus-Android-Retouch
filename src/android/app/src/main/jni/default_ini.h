@@ -248,7 +248,7 @@ screen_orientation =
 # Layout for the portrait mode
 # 0 (default): Top and bottom screens at top, full width
 # 1: Custom Layout
-portrait_layout_option =
+portrait_layout_option = 1
 
 # Screen placement when using Portrait Custom layout option
 # 0x, 0y is the top left corner of the render window.

@@ -183,9 +183,9 @@ void Config::ReadValues() {
         layoutInt = static_cast<int>(Settings::LayoutOption::LargeScreen);
     }
     Settings::values.layout_option = static_cast<Settings::LayoutOption>(layoutInt);
-    Settings::values.screen_gap = static_cast<int>(sdl2_config->GetReal("Layout", "screen_gap", 0));
+    Settings::values.screen_gap = static_cast<int>(sdl2_config->GetReal("Layout", "screen_gap", 2));
     Settings::values.large_screen_proportion =
-        static_cast<float>(sdl2_config->GetReal("Layout", "large_screen_proportion", 2.25));
+        static_cast<float>(sdl2_config->GetReal("Layout", "large_screen_proportion", 2.65));
     Settings::values.small_screen_position = static_cast<Settings::SmallScreenPosition>(
         sdl2_config->GetInteger("Layout", "small_screen_position",
                                 static_cast<int>(Settings::SmallScreenPosition::TopRight)));
@@ -205,7 +205,7 @@ void Config::ReadValues() {
     Settings::values.portrait_layout_option =
         static_cast<Settings::PortraitLayoutOption>(sdl2_config->GetInteger(
             "Layout", "portrait_layout_option",
-            static_cast<int>(Settings::PortraitLayoutOption::PortraitTopFullWidth)));
+            static_cast<int>(Settings::PortraitLayoutOption::PortraitCustomLayout)));
     ReadSetting("Layout", Settings::values.custom_portrait_top_x);
     ReadSetting("Layout", Settings::values.custom_portrait_top_y);
     ReadSetting("Layout", Settings::values.custom_portrait_top_width);
