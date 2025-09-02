@@ -23,7 +23,7 @@ enum class IntSetting(
     CARDBOARD_SCREEN_SIZE("cardboard_screen_size", Settings.SECTION_LAYOUT, 85),
     CARDBOARD_X_SHIFT("cardboard_x_shift", Settings.SECTION_LAYOUT, 0),
     CARDBOARD_Y_SHIFT("cardboard_y_shift", Settings.SECTION_LAYOUT, 0),
-    SCREEN_LAYOUT("layout_option", Settings.SECTION_LAYOUT, 0),
+    SCREEN_LAYOUT("layout_option", Settings.SECTION_LAYOUT, 2),
     SMALL_SCREEN_POSITION("small_screen_position",Settings.SECTION_LAYOUT,0),
     LANDSCAPE_TOP_X("custom_top_x",Settings.SECTION_LAYOUT,0),
     LANDSCAPE_TOP_Y("custom_top_y",Settings.SECTION_LAYOUT,0),

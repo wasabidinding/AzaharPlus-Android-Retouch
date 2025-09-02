@@ -60,14 +60,29 @@
             android:focusable="false"
             android:visibility="visible" />
 
-        <Button
-            android:id="@+id/done_control_config"
-            style="@style/Widget.Material3.Button.ElevatedButton"
+        <LinearLayout
+            android:id="@+id/control_edit_actions"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="@string/emulation_done"
-            android:visibility="gone" />
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <Button
+                android:id="@+id/btn_export_controls"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/export_controls"
+                android:alpha="0"/>
+
+            <Button
+                android:id="@+id/done_control_config"
+                style="@style/Widget.Material3.Button.ElevatedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/emulation_done"/>
+        </LinearLayout>
 
         <!-- Black overlay for loading screen -->
         <View
