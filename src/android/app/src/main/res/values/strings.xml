@@ -414,6 +414,7 @@
     <string name="loading_save_state">Loading save state…</string>
     <string name="game_loaded_successfully">Game loaded successfully</string>
     <string name="game_ready">Game ready</string>
+    <string name="game_saved">Game saved</string>
     <string name="auto_load_state">Auto Load State</string>
     <string name="next">Next</string>
     <string name="back">Back</string>
@@ -479,6 +480,10 @@
     <string name="emulation_haptic_feedback">Haptic Feedback</string>
     <string name="emulation_overlay_options">Overlay Options</string>
     <string name="emulation_hot_corner_settings">Hot Corners Settings</string>
+    <string name="emulation_hot_corner_bottom_center">Bottom-Center</string>
+    <string name="emulation_hot_corner_bottom_center_dialog_title">Bottom-Center Hot Corner</string>
+    <string name="emulation_hot_corner_bottom_center_option_press_to_show_time_battery">Press and Hold: Show Time &amp; Battery</string>
+    <string name="emulation_hot_corner_bottom_center_option_off">Off</string>
     <string name="emulation_hot_corner_portrait_bl">Portrait • Bottom-Left</string>
     <string name="emulation_hot_corner_portrait_br">Portrait • Bottom-Right</string>
     <string name="emulation_hot_corner_landscape_bl">Landscape • Bottom-Left</string>
@@ -489,6 +494,7 @@
     <string name="emulation_hot_corner_action_quicksave">Quick Save</string>
     <string name="emulation_hot_corner_action_quickload">Quick Load</string>
     <string name="emulation_hot_corner_action_menu">Open Menu</string>
+    <string name="emulation_hot_corner_action_swap">Swap Screens</string>
     <string name="emulation_configure_controls">Configure Controls</string>
     <string name="emulation_edit_layout">Edit Layout</string>
     <string name="emulation_done">Done</string>

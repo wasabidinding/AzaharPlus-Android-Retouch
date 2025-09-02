@@ -21,7 +21,8 @@ object HotCornerSettings {
         TOGGLE_TURBO("toggle_turbo", R.string.turbo_limit_hotkey),
         QUICK_SAVE("quick_save", R.string.button_quick_save),
         QUICK_LOAD("quick_load", R.string.button_quick_load),
-        OPEN_MENU("open_menu", R.string.button_menu)
+        OPEN_MENU("open_menu", R.string.button_menu),
+        SWAP_SCREENS("swap_screens", R.string.button_swap)
     }
 
     private fun key(orientation: Int, position: HotCornerPosition): String {
@@ -53,6 +54,25 @@ object HotCornerSettings {
 
     fun setAction(orientation: Int, position: HotCornerPosition, action: HotCornerAction) {
         preferences.edit().putString(key(orientation, position), action.name).apply()
+    }
+
+    // Bottom-Center hot corner visibility setting (press to show HUD vs off)
+    enum class BottomCenterMode { PRESS_TO_SHOW_HUD, OFF }
+
+    private fun bottomCenterKey(orientation: Int): String {
+        val orient = if (orientation == Configuration.ORIENTATION_LANDSCAPE) "land" else "port"
+        return "HotCorner_${orient}_bc_mode"
+    }
+
+    fun getBottomCenterMode(orientation: Int): BottomCenterMode {
+        val stored = preferences.getString(bottomCenterKey(orientation), null)
+        val defaultMode = BottomCenterMode.PRESS_TO_SHOW_HUD
+        val value = stored ?: defaultMode.name
+        return runCatching { BottomCenterMode.valueOf(value) }.getOrElse { defaultMode }
+    }
+
+    fun setBottomCenterMode(orientation: Int, mode: BottomCenterMode) {
+        preferences.edit().putString(bottomCenterKey(orientation), mode.name).apply()
     }
 }
 

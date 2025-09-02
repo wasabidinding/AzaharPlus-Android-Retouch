@@ -259,6 +259,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                         HotCornerSettings.HotCornerAction.OPEN_MENU -> {
                             openDrawer()
                         }
+                        HotCornerSettings.HotCornerAction.SWAP_SCREENS -> {
+                            screenAdjustmentUtil.swapScreen()
+                        }
                         HotCornerSettings.HotCornerAction.NONE -> {}
                     }
                 }
@@ -435,7 +438,23 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                         .setTitle(R.string.emulation_close_game)
                         .setMessage(R.string.emulation_close_game_message)
                         .setPositiveButton(android.R.string.ok) { _: DialogInterface?, _: Int ->
-                            EmulationLifecycleUtil.closeGame()
+                            // 如果开启了自动保存，则在退出前保存到最后一个槽位并提示
+                            if (BooleanSetting.AUTO_SAVE_ON_EXIT.boolean && NativeLibrary.isRunning()) {
+                                try {
+                                    NativeLibrary.unPauseEmulation()
+                                    val slotForAutoSave = NativeLibrary.SAVESTATE_SLOT_COUNT - 1
+                                    NativeLibrary.saveState(slotForAutoSave)
+                                    Toast.makeText(requireContext(), getString(R.string.game_saved), Toast.LENGTH_SHORT).show()
+                                    // 略微延迟，给内核处理存档信号的时间
+                                    Handler(Looper.getMainLooper()).postDelayed({
+                                        EmulationLifecycleUtil.closeGame()
+                                    }, 600)
+                                } catch (_: Exception) {
+                                    EmulationLifecycleUtil.closeGame()
+                                }
+                            } else {
+                                EmulationLifecycleUtil.closeGame()
+                            }
                         }
                         .setNegativeButton(android.R.string.cancel) { _: DialogInterface?, _: Int ->
                             emulationState.unpause()
@@ -1023,6 +1042,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                     true
                 }
 
+                R.id.menu_emulation_hot_corner_bottom_center -> {
+                    showBottomCenterHotCornerDialog()
+                    true
+                }
+
                 R.id.menu_emulation_joystick_rel_center -> {
                     EmulationMenuSettings.joystickRelCenter =
                         !EmulationMenuSettings.joystickRelCenter
@@ -1063,7 +1087,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             getString(R.string.emulation_hot_corner_action_turbo),
             getString(R.string.emulation_hot_corner_action_quicksave),
             getString(R.string.emulation_hot_corner_action_quickload),
-            getString(R.string.emulation_hot_corner_action_menu)
+            getString(R.string.emulation_hot_corner_action_menu),
+            getString(R.string.emulation_hot_corner_action_swap)
         )
         val current = HotCornerSettings.getAction(orientation, position)
         var selectedIndex = when (current) {
@@ -1073,6 +1098,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             HotCornerSettings.HotCornerAction.QUICK_SAVE -> 3
             HotCornerSettings.HotCornerAction.QUICK_LOAD -> 4
             HotCornerSettings.HotCornerAction.OPEN_MENU -> 5
+            HotCornerSettings.HotCornerAction.SWAP_SCREENS -> 6
         }
 
         MaterialAlertDialogBuilder(requireContext())
@@ -1088,9 +1114,36 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                     3 -> HotCornerSettings.HotCornerAction.QUICK_SAVE
                     4 -> HotCornerSettings.HotCornerAction.QUICK_LOAD
                     5 -> HotCornerSettings.HotCornerAction.OPEN_MENU
+                    6 -> HotCornerSettings.HotCornerAction.SWAP_SCREENS
                     else -> HotCornerSettings.HotCornerAction.NONE
                 }
                 HotCornerSettings.setAction(orientation, position, action)
+                binding.hotCornerOverlay.refresh()
+                dialog.dismiss()
+            }
+            .setNegativeButton(android.R.string.cancel) { dialog, _ ->
+                dialog.dismiss()
+            }
+            .show()
+    }
+
+    private fun showBottomCenterHotCornerDialog() {
+        val items = arrayOf(
+            getString(R.string.emulation_hot_corner_bottom_center_option_press_to_show_time_battery),
+            getString(R.string.emulation_hot_corner_bottom_center_option_off)
+        )
+        val orientation = resources.configuration.orientation
+        val current = HotCornerSettings.getBottomCenterMode(orientation)
+        var selectedIndex = if (current == HotCornerSettings.BottomCenterMode.PRESS_TO_SHOW_HUD) 0 else 1
+
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.emulation_hot_corner_bottom_center_dialog_title)
+            .setSingleChoiceItems(items, selectedIndex) { _, which ->
+                selectedIndex = which
+            }
+            .setPositiveButton(R.string.save) { dialog, _ ->
+                val mode = if (selectedIndex == 0) HotCornerSettings.BottomCenterMode.PRESS_TO_SHOW_HUD else HotCornerSettings.BottomCenterMode.OFF
+                HotCornerSettings.setBottomCenterMode(orientation, mode)
                 binding.hotCornerOverlay.refresh()
                 dialog.dismiss()
             }

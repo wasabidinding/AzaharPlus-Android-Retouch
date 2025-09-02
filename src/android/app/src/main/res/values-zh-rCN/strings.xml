@@ -8,6 +8,11 @@
     <string name="export_controls_copied">按键布局已复制到剪贴板</string>
     <string name="auto_save_on_exit">退出时自动保存</string>
     <string name="auto_save_on_exit_description">返回桌面或切换应用时自动保存游戏状态。</string>
+    <string name="game_saved">游戏已保存</string>
+    <string name="emulation_hot_corner_bottom_center">底部中间</string>
+    <string name="emulation_hot_corner_bottom_center_dialog_title">底部中间热区</string>
+    <string name="emulation_hot_corner_bottom_center_option_press_to_show_time_battery">长按显示时间电量</string>
+    <string name="emulation_hot_corner_bottom_center_option_off">关闭</string>
 </resources>
 
 
