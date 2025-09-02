@@ -577,6 +577,10 @@
     <string name="shortcut">Shortcut</string>
     <string name="uninstall_cia">Uninstall Application</string>
     <string name="uninstalling">Uninstalling...</string>
+    <string name="use_other_graphics_api">Use other Graphics API</string>
+    <string name="use_render_type_graphics_api">Use %1$s Graphics API</string>
+    <string name="overwrite_graphics_api_experimental">Overwrite Graphics API (Experimental)</string>
+    <string name="system_default">System Default</string>
     <string name="game_context_open_save_dir">Open Save Data Folder</string>
     <string name="game_context_open_app">Open Application Folder</string>
     <string name="game_context_open_mods">Open Mods Folder</string>

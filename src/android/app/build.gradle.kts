@@ -205,8 +205,15 @@ val unzipVulkanValidationLayers = tasks.register<Copy>("unzipVulkanValidationLay
     into(downloadedJniLibsPath)
 }
 
-tasks.named("preBuild") {
-    dependsOn(unzipVulkanValidationLayers)
+// Allow skipping Vulkan Validation Layers download in offline/limited network environments.
+// Usage: ./gradlew :app:assembleRelWithDebInfo -PskipVulkanLayers=true
+val skipVulkanLayers: Boolean = (project.findProperty("skipVulkanLayers") as String?)?.toBoolean()
+    ?: gradle.startParameter.isOffline
+
+if (!skipVulkanLayers) {
+    tasks.named("preBuild") {
+        dependsOn(unzipVulkanValidationLayers)
+    }
 }
 
 fun getGitVersion(): String {

@@ -14,7 +14,7 @@
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:nextFocusRight="@id/about_game_play"
+        android:nextFocusRight="@id/cheats"
         android:paddingHorizontal="16dp"
         android:paddingBottom="8dp">
 
@@ -101,14 +101,23 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/about_game_play"
-                style="@style/Widget.Material3.Button.Icon"
-                android:layout_width="0dp"
+                style="@style/Widget.Material3.Button.IconButton"
+                android:layout_width="48dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="3"
                 android:contentDescription="@string/play"
-                android:focusedByDefault="true"
-                android:text="@string/play"
-                app:icon="@drawable/ic_play" />
+                app:icon="@drawable/ic_play"
+                app:iconGravity="textStart"
+                app:iconTint="?attr/colorOnPrimary"
+                app:backgroundTint="?attr/colorPrimary" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/cheats"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:contentDescription="@string/cheats"
+                android:text="@string/cheats" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/menu_button_open"
@@ -143,38 +152,78 @@
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/game_button_tray"
-            style="@style/ThemeOverlay.Material3.Button.IconButton.Filled.Tonal"
+            android:id="@+id/game_toggles_container"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:gravity="start|center"
-            android:orientation="horizontal"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/horizontal_layout">
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/horizontal_layout"
+            app:layout_constraintBottom_toBottomOf="parent"
+            android:paddingBottom="8dp">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/cheats"
-                style="@style/Widget.Material3.Button.TonalButton.Icon"
-                android:layout_width="wrap_content"
+            <!-- Auto Load row: label + MaterialSwitch (aligned end) to match Settings style -->
+            <RelativeLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:contentDescription="@string/cheats"
-                android:text="@string/cheats" />
+                android:minHeight="56dp"
+                android:paddingVertical="4dp">
 
-            <Space
-                android:layout_width="0dp"
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/auto_load_label"
+                    style="@style/TextAppearance.Material3.TitleMedium"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:textStyle="normal"
+                    android:text="@string/auto_load_state" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/auto_load_state_switch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true" />
+            </RelativeLayout>
+
+            <com.google.android.material.divider.MaterialDivider
+                android:id="@+id/divider_api"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1" />
+                android:layout_marginTop="8dp" />
 
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/auto_load_state_switch"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical"
-                android:text="@string/auto_load_state" />
+            <!-- Single-line list item: title left, value right -->
+            <RelativeLayout
+                android:id="@+id/api_row"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:paddingVertical="4dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
 
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/api_override_title"
+                    style="@style/TextAppearance.Material3.TitleMedium"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:textStyle="normal"
+                    android:text="@string/graphics_api" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/api_override_value"
+                    style="@style/TextAppearance.Material3.BodyMedium"
+                    android:textStyle="bold"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:text="@string/system_default" />
+            </RelativeLayout>
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>
