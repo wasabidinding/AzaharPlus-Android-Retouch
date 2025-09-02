@@ -388,6 +388,7 @@
     <string name="emulation_hot_corner_action_quicksave">快速保存</string>
     <string name="emulation_hot_corner_action_quickload">快速加载</string>
     <string name="emulation_hot_corner_action_menu">弹出菜单</string>
+    <string name="emulation_hot_corner_action_swap">交换屏幕</string>
     <string name="emulation_configure_controls">控制设置</string>
     <string name="emulation_edit_layout">编辑布局</string>
     <string name="emulation_done">完成</string>

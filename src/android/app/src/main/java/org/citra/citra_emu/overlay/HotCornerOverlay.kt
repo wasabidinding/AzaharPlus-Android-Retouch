@@ -78,8 +78,11 @@ class HotCornerOverlay @JvmOverloads constructor(
             addView(createCornerView(sizePx, Gravity.BOTTOM or Gravity.START, blAction))
         }
         
-        // Bottom-Center hot corner (press-and-hold style)
-        addView(createBottomCenterPressView(bottomCenterWidth, bottomCenterHeight))
+        // Bottom-Center hot corner (press-and-hold style) — show only if enabled
+        val bcMode = HotCornerSettings.getBottomCenterMode(orientation)
+        if (bcMode == HotCornerSettings.BottomCenterMode.PRESS_TO_SHOW_HUD) {
+            addView(createBottomCenterPressView(bottomCenterWidth, bottomCenterHeight))
+        }
     }
 
     private fun createCornerView(

@@ -124,6 +124,9 @@
             <item
                 android:id="@+id/menu_emulation_hot_corner_landscape_br"
                 android:title="@string/emulation_hot_corner_landscape_br" />
+            <item
+                android:id="@+id/menu_emulation_hot_corner_bottom_center"
+                android:title="@string/emulation_hot_corner_bottom_center" />
         </menu>
     </item>
 
