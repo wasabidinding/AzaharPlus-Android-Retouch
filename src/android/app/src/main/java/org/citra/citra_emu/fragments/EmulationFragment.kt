@@ -1884,6 +1884,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
             // If the surface is set, run now. Otherwise, wait for it to get set.
             if (surface != null) {
+                // Apply per-game graphics API override before starting the run
+                tryApplyPerGameGraphicsApiOverride()
                 runWithValidSurface()
             }
         }
@@ -1927,6 +1929,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 State.STOPPED -> {
                     Thread({
                         Log.debug("[EmulationFragment] Starting emulation thread.")
+                        // Apply per-game graphics API override right before run as an extra safety
+                        tryApplyPerGameGraphicsApiOverride()
                         NativeLibrary.run(gamePath)
                     }, "NativeEmulation").start()
                 }
@@ -1947,6 +1951,39 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             STOPPED,
             RUNNING,
             PAUSED
+        }
+
+        private fun tryApplyPerGameGraphicsApiOverride() {
+            try {
+                val ctx = CitraApplication.appContext
+                val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx)
+                // Resolve titleId from path to check per-game switch
+                val titleId = org.citra.citra_emu.NativeLibrary.getTitleId(gamePath)
+                if (titleId == 0L) return
+                val key = "override_graphics_api_" + titleId
+                val enabled = prefs.getBoolean(key, false)
+                if (!enabled) return
+
+                // Read per-game selection: 0 system, 1 GL, 2 VK
+                val selection = prefs.getInt("override_graphics_api_value_" + titleId, 0)
+                if (selection == 0) return
+                val targetApi = selection
+
+                // Guard: if device lacks Vulkan support, skip overriding to Vulkan
+                if (targetApi == 2) {
+                    val pm = ctx.packageManager
+                    val supportsVulkan = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                        pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_VULKAN_HARDWARE_LEVEL) ||
+                                pm.hasSystemFeature(android.content.pm.PackageManager.FEATURE_VULKAN_HARDWARE_VERSION)
+                    } else false
+                    if (!supportsVulkan) return
+                    // Ensure Vulkan driver/hook is initialized before launching
+                    try {
+                        org.citra.citra_emu.utils.GpuDriverHelper.initializeDriverParameters()
+                    } catch (_: Exception) { }
+                }
+                org.citra.citra_emu.NativeLibrary.setOverrideGraphicsApi(targetApi)
+            } catch (_: Exception) { }
         }
     }
 

@@ -29,11 +29,13 @@ import androidx.navigation.Navigation
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.button.MaterialButton
-import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.materialswitch.MaterialSwitch
 import org.citra.citra_emu.CitraApplication
 import org.citra.citra_emu.HomeNavigationDirections
 import org.citra.citra_emu.R
 import org.citra.citra_emu.model.Game
+import androidx.preference.PreferenceManager
+import org.citra.citra_emu.features.settings.model.IntSetting
 import org.citra.citra_emu.utils.FileUtil
 import org.citra.citra_emu.utils.GameIconUtils
 import org.citra.citra_emu.viewmodel.GamesViewModel
@@ -92,7 +94,7 @@ class AboutGameBottomSheet : BottomSheetDialogFragment() {
 
         val preferences = androidx.preference.PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext)
         val autoLoadStateKey = "auto_load_state_${game.titleId}"
-        val autoLoadStateSwitch = view.findViewById<SwitchMaterial>(R.id.auto_load_state_switch)
+        val autoLoadStateSwitch = view.findViewById<MaterialSwitch>(R.id.auto_load_state_switch)
         autoLoadStateSwitch.isChecked = preferences.getBoolean(autoLoadStateKey, true)
         autoLoadStateSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferences.edit().putBoolean(autoLoadStateKey, isChecked).apply()
@@ -102,6 +104,33 @@ class AboutGameBottomSheet : BottomSheetDialogFragment() {
             val action = HomeNavigationDirections.actionGlobalEmulationActivity(game)
             Navigation.findNavController(requireActivity(), R.id.fragment_container).navigate(action)
         }
+
+        // 图形 API 覆盖下拉菜单
+        // API 选择值按 settings 风格展示为单行：标题左、值右
+        val apiValueView = view.findViewById<TextView>(R.id.api_override_value)
+        val perGameOverrideKey = "override_graphics_api_value_" + game.titleId // 0 system, 1 GL, 2 VK
+        val items = listOf(
+            getString(R.string.system_default),
+            getString(R.string.opengles),
+            getString(R.string.vulkan)
+        )
+        val savedValue = PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext).getInt(perGameOverrideKey, 0)
+        apiValueView.text = items.getOrElse(savedValue) { items[0] }
+        // 点击整行或 value 弹出单选对话框
+        val openChooser: (View) -> Unit = {
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.graphics_api)
+                .setSingleChoiceItems(items.toTypedArray(), savedValue) { dialog, which ->
+                    PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext)
+                        .edit().putInt(perGameOverrideKey, which).apply()
+                    apiValueView.text = items[which]
+                    dialog.dismiss()
+                }
+                .setNegativeButton(R.string.close, null)
+                .show()
+        }
+        apiValueView.setOnClickListener(openChooser)
+        view.findViewById<View>(R.id.api_row).setOnClickListener(openChooser)
 
         view.findViewById<MaterialButton>(R.id.game_shortcut).setOnClickListener {
             val shortcutManager = requireContext().getSystemService(ShortcutManager::class.java)

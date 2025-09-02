@@ -543,6 +543,10 @@
     <string name="play">开始游戏</string>
     <string name="uninstall_cia">卸载应用</string>
     <string name="uninstalling">正在卸载...</string>
+    <string name="use_other_graphics_api">使用另一种图形 API</string>
+    <string name="use_render_type_graphics_api">使用 %1$s 图形 API</string>
+    <string name="overwrite_graphics_api_experimental">覆盖图形 API（实验性）</string>
+    <string name="system_default">系统默认</string>
     <string name="game_context_open_save_dir">打开存档数据文件夹</string>
     <string name="game_context_open_app">打开应用文件夹</string>
     <string name="game_context_open_mods">打开模组文件夹</string>

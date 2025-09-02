@@ -105,6 +105,9 @@ std::condition_variable running_cv;
 
 std::string inserted_cartridge;
 
+// Per-run graphics API override. 0 = no override, otherwise matches Settings::GraphicsAPI
+static std::atomic<int> s_override_graphics_api{0};
+
 } // Anonymous namespace
 
 static jobject ToJavaCoreError(Core::System::ResultStatus result) {
@@ -191,7 +194,13 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
         system.InsertCartridge(inserted_cartridge);
     }
 
-    const auto graphics_api = Settings::values.graphics_api.GetValue();
+    auto graphics_api = Settings::values.graphics_api.GetValue();
+    const int override_api = s_override_graphics_api.exchange(0);
+    if (override_api != 0) {
+        graphics_api = static_cast<Settings::GraphicsAPI>(override_api);
+        Settings::values.graphics_api = graphics_api;
+        Settings::LogSettings();
+    }
     EGLContext* shared_context;
     switch (graphics_api) {
 #ifdef ENABLE_OPENGL
@@ -232,6 +241,10 @@ static Core::System::ResultStatus RunCitra(const std::string& filepath) {
 
     // Forces a config reload on game boot, if the user changed settings in the UI
     Config{};
+    // Re-apply per-run override after config reload so ApplySettings uses the same API
+    if (override_api != 0) {
+        Settings::values.graphics_api = static_cast<Settings::GraphicsAPI>(override_api);
+    }
     // Replace with game-specific settings
     u64 program_id{};
     FileUtil::SetCurrentRomPath(filepath);
@@ -413,6 +426,14 @@ void Java_org_citra_citra_1emu_NativeLibrary_secondarySurfaceDestroyed(
     }
 
     LOG_INFO(Frontend, "Secondary Surface Destroyed");
+}
+
+void Java_org_citra_citra_1emu_NativeLibrary_setOverrideGraphicsApi([[maybe_unused]] JNIEnv* env,
+                                                                   [[maybe_unused]] jobject obj,
+                                                                   jint api) {
+    if (api >= 0 && api <= 2) {
+        s_override_graphics_api = static_cast<int>(api);
+    }
 }
 
 void Java_org_citra_citra_1emu_NativeLibrary_surfaceDestroyed([[maybe_unused]] JNIEnv* env,

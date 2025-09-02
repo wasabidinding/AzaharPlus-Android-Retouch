@@ -173,6 +173,12 @@ object NativeLibrary {
      */
     external fun run(path: String)
 
+    /**
+     * Temporarily override the graphics API for the next run.
+     * Pass 0 to clear override, 1 for OpenGL, 2 for Vulkan.
+     */
+    external fun setOverrideGraphicsApi(api: Int)
+
     // Surface Handling
     external fun surfaceChanged(surf: Surface)
     external fun surfaceDestroyed()
