@@ -7,6 +7,9 @@ package org.citra.citra_emu.fragments
 import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.content.Context
+import android.content.ClipboardManager
+import android.content.ClipData
+import kotlin.math.roundToInt
 import android.content.DialogInterface
 import android.content.Intent
 import android.content.IntentFilter
@@ -219,8 +222,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         }
 
         binding.surfaceEmulation.holder.addCallback(this)
+        binding.btnExportControls.setOnClickListener {
+            exportOverlayLayoutToClipboard()
+        }
         binding.doneControlConfig.setOnClickListener {
-            binding.doneControlConfig.visibility = View.GONE
+            binding.controlEditActions.visibility = View.GONE
             binding.surfaceInputOverlay.setIsInEditMode(false)
             // 恢复热区
             binding.hotCornerOverlay.visibility = View.VISIBLE
@@ -1268,17 +1274,91 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
     private fun editControlsPlacement() {
         if (binding.surfaceInputOverlay.isInEditMode) {
-            binding.doneControlConfig.visibility = View.GONE
+            binding.controlEditActions.visibility = View.GONE
             binding.surfaceInputOverlay.setIsInEditMode(false)
             // 恢复热区
             binding.hotCornerOverlay.visibility = View.VISIBLE
             binding.hotCornerOverlay.refresh()
         } else {
-            binding.doneControlConfig.visibility = View.VISIBLE
+            binding.controlEditActions.visibility = View.VISIBLE
             binding.surfaceInputOverlay.setIsInEditMode(true)
             // 进入编辑模式时隐藏所有热区，避免拦截触控
             binding.hotCornerOverlay.visibility = View.GONE
+            binding.hotCornerOverlay.refresh()
         }
+    }
+
+    private fun exportOverlayLayoutToClipboard() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext)
+        val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
+        val orientationSuffix = if (isPortrait) "-Portrait" else ""
+
+        fun xyPctOf(idRaw: Int, portraitMode: Boolean): Pair<Int, Int> {
+            val id = if (idRaw == NativeLibrary.ButtonType.DPAD) NativeLibrary.ButtonType.DPAD_UP else idRaw
+            val suffix = if (portraitMode) "-Portrait" else ""
+            val xPx = prefs.getFloat("$id$suffix-X", 0f)
+            val yPx = prefs.getFloat("$id$suffix-Y", 0f)
+            val display = requireActivity().windowManager.defaultDisplay
+            val out = android.util.DisplayMetrics()
+            display.getMetrics(out)
+            var w = out.widthPixels
+            var h = out.heightPixels
+            if (portraitMode && h < w) {
+                val t = w; w = h; h = t
+            } else if (!portraitMode && w < h) {
+                val t = w; w = h; h = t
+            }
+            val xPct = ((xPx / w) * 1000f).roundToInt()
+            val yPct = ((yPx / h) * 1000f).roundToInt()
+            return xPct to yPct
+        }
+
+        val ids = listOf(
+            NativeLibrary.ButtonType.BUTTON_A,
+            NativeLibrary.ButtonType.BUTTON_B,
+            NativeLibrary.ButtonType.BUTTON_X,
+            NativeLibrary.ButtonType.BUTTON_Y,
+            NativeLibrary.ButtonType.TRIGGER_L,
+            NativeLibrary.ButtonType.TRIGGER_R,
+            NativeLibrary.ButtonType.BUTTON_ZL,
+            NativeLibrary.ButtonType.BUTTON_ZR,
+            NativeLibrary.ButtonType.BUTTON_START,
+            NativeLibrary.ButtonType.BUTTON_SELECT,
+            NativeLibrary.ButtonType.DPAD,
+            NativeLibrary.ButtonType.STICK_LEFT,
+            NativeLibrary.ButtonType.STICK_C,
+            NativeLibrary.ButtonType.BUTTON_HOME,
+            NativeLibrary.ButtonType.BUTTON_SWAP,
+            NativeLibrary.ButtonType.BUTTON_TURBO,
+            NativeLibrary.ButtonType.BUTTON_QUICK_SAVE,
+            NativeLibrary.ButtonType.BUTTON_QUICK_LOAD,
+            NativeLibrary.ButtonType.BUTTON_MENU,
+        )
+
+        val globalScale = prefs.getInt("controlScale", 50)
+        val opacity = prefs.getInt("controlOpacity", 50)
+
+        val sb = StringBuilder()
+        sb.append("globalScale=$globalScale\n")
+        sb.append("opacity=$opacity\n")
+
+        sb.append("[landscape]\n")
+        ids.forEach { id ->
+            val (x, y) = xyPctOf(id, false)
+            val perButtonScale = prefs.getInt("controlScale-$id", 50)
+            sb.append("$id: x=$x, y=$y, scale=$perButtonScale\n")
+        }
+
+        sb.append("[portrait]\n")
+        ids.forEach { id ->
+            val (x, y) = xyPctOf(id, true)
+            val perButtonScale = prefs.getInt("controlScale-$id", 50)
+            sb.append("$id: x=$x, y=$y, scale=$perButtonScale\n")
+        }
+
+        val clipboard = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("overlay", sb.toString()))
+        Toast.makeText(requireContext(), getString(R.string.export_controls_copied), Toast.LENGTH_SHORT).show()
     }
 
     private fun showToggleControlsDialog() {
@@ -1477,14 +1557,16 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     private fun resetInputOverlay() {
         resetAllScales()
         preferences.edit()
-            .putInt("controlOpacity", 50)
+            .putInt("controlOpacity", 100)
             .apply()
 
         val editor = preferences.edit()
         for (i in 0 until 19) {
             var defaultValue = true
             when (i) {
-                6, 7, 12, 13, 14, 15, 16, 17, 18 -> defaultValue = false
+                // Disabled by default: ZL, ZR, Stick C, Home, Swap, Turbo
+                // Keep Quick Save/Load/Menu (16/17/18) enabled by default
+                6, 7, 12, 13, 14, 15 -> defaultValue = false
             }
             editor.putBoolean("buttonToggle$i", defaultValue)
         }

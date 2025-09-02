@@ -780,7 +780,7 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             )
         }
 
-        if (preferences.getBoolean("buttonToggle16", false)) {
+        if (preferences.getBoolean("buttonToggle16", true)) {
             overlayButtons.add(
                 initializeOverlayButton(
                     context,
@@ -792,7 +792,7 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             )
         }
 
-        if (preferences.getBoolean("buttonToggle17", false)) {
+        if (preferences.getBoolean("buttonToggle17", true)) {
             overlayButtons.add(
                 initializeOverlayButton(
                     context,
@@ -804,7 +804,7 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             )
         }
 
-        if (preferences.getBoolean("buttonToggle18", false)) {
+        if (preferences.getBoolean("buttonToggle18", true)) {
             overlayButtons.add(
                 initializeOverlayButton(
                     context,
@@ -1335,16 +1335,31 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
 
             // Decide scale based on button ID and user preference
             var scale: Float = when (buttonId) {
-                NativeLibrary.ButtonType.BUTTON_HOME,
-                NativeLibrary.ButtonType.BUTTON_START,
-                NativeLibrary.ButtonType.BUTTON_SELECT,
-                NativeLibrary.ButtonType.BUTTON_SWAP -> 0.08f
-                NativeLibrary.ButtonType.BUTTON_TURBO -> 0.10f
+                // ABXY
+                NativeLibrary.ButtonType.BUTTON_A,
+                NativeLibrary.ButtonType.BUTTON_B,
+                NativeLibrary.ButtonType.BUTTON_X,
+                NativeLibrary.ButtonType.BUTTON_Y -> 0.144f
 
+                // Shoulder buttons
                 NativeLibrary.ButtonType.TRIGGER_L,
                 NativeLibrary.ButtonType.TRIGGER_R,
                 NativeLibrary.ButtonType.BUTTON_ZL,
-                NativeLibrary.ButtonType.BUTTON_ZR -> 0.18f
+                NativeLibrary.ButtonType.BUTTON_ZR -> 0.16f
+
+                // System/navigation buttons
+                NativeLibrary.ButtonType.BUTTON_START,
+                NativeLibrary.ButtonType.BUTTON_SELECT,
+                NativeLibrary.ButtonType.BUTTON_HOME,
+                NativeLibrary.ButtonType.BUTTON_SWAP -> 0.07f
+
+                // Quick actions and menu
+                NativeLibrary.ButtonType.BUTTON_QUICK_SAVE,
+                NativeLibrary.ButtonType.BUTTON_QUICK_LOAD,
+                NativeLibrary.ButtonType.BUTTON_MENU -> 0.07f
+
+                // Turbo remains unchanged
+                NativeLibrary.ButtonType.BUTTON_TURBO -> 0.10f
 
                 else -> 0.11f
             }
@@ -1355,7 +1370,7 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             scale *= (preferences.getInt("controlScale-$buttonId", 50) + 50).toFloat()
             scale /= 100f
           
-            val opacity: Int = preferences.getInt("controlOpacity", 50) * 255 / 100
+            val opacity: Int = preferences.getInt("controlOpacity", 100) * 255 / 100
 
             // Initialize the InputOverlayDrawableButton.
             val defaultStateBitmap = getBitmap(context, defaultResId, scale)
@@ -1409,7 +1424,7 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             val res = context.resources
 
             // Decide scale based on button ID and user preference
-            var scale = 0.22f
+            var scale = 0.347f
             scale *= (preferences.getInt("controlScale", 50) + 50).toFloat()
             scale /= 100f
 
@@ -1420,7 +1435,7 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             
             scale /= 100f
           
-            val opacity: Int = preferences.getInt("controlOpacity", 50) * 255 / 100
+            val opacity: Int = preferences.getInt("controlOpacity", 100) * 255 / 100
 
             // Initialize the InputOverlayDrawableDpad.
             val defaultStateBitmap = getBitmap(context, defaultResId, scale)
@@ -1476,14 +1491,14 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             val res = context.resources
 
             // Decide scale based on user preference
-            var scale = 0.275f
+            var scale = if (joystick == NativeLibrary.ButtonType.STICK_C) 0.27f else 0.285f
             scale *= (preferences.getInt("controlScale", 50) + 50).toFloat()
             scale /= 100f
 
             scale *= (preferences.getInt("controlScale-$joystick", 50) + 50).toFloat()
             scale /= 100f
 
-            val opacity: Int = preferences.getInt("controlOpacity", 50) * 255 / 100
+            val opacity: Int = preferences.getInt("controlOpacity", 100) * 255 / 100
 
             // Initialize the InputOverlayDrawableJoystick.
             val bitmapOuter = getBitmap(context, resOuter, scale)
