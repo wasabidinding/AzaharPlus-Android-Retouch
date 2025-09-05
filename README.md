@@ -1,75 +1,44 @@
-<b>AzaharPlus</b> is a fork of the Azahar 3DS emulator that restores some features.
+# AzaharPlus Enhanced (Android-Optimized Version)
 
-Each version is the same as the corresponding version of Azahar exept for these features:
-- Support of 3DS files. If a file works with earlier Citra forks, it works with AzaharPlus.
-- Ability to download system files from official servers. No need for an actual 3DS.
+This project is an Android-focused enhancement of **[AzaharPlus](https://github.com/AzaharPlus/AzaharPlus)**, which itself is a fork of the excellent open-source 3DS emulator **[Azahar](https://azahar-emu.org/)**.
 
-The Azahar logo is the property of PabloMK7 and angyartanddraw
----
+**Azahar** is an open-source 3DS emulator based on Citra. It originates from a merge between PabloMK7’s Citra fork and Lime3DS, with the goal of becoming the definitive platform for continued 3DS emulation development  [azahar-emu.org](https://azahar-emu.org).
 
-![Azahar Emulator](https://azahar-emu.org/resources/images/logo/azahar-name-and-logo.svg)
+**AzaharPlus** expands Azahar by restoring certain functionalities—such as support for .3DS files and the ability to download system files directly from official servers—making it easier to use without an actual 3DS device  [github.com/AzaharPlus](https://github.com/AzaharPlus/AzaharPlus).
 
-![GitHub Release](https://img.shields.io/github/v/release/AzaharPlus/AzaharPlus?label=Current%20Release)
-![GitHub Downloads](https://img.shields.io/github/downloads/AzaharPlus/AzaharPlus/total?logo=github&label=GitHub%20Downloads)
-
-<b>Azahar</b> is an open-source 3DS emulator project based on Citra.
-
-It was created from the merging of PabloMK7's Citra fork and the Lime3DS project, both of which emerged shortly after Citra was taken down.
-
-The goal of this project is to be the de-facto platform for future development.
-
-# Installation
-
-### Windows
-
-Download the latest release from [Releases](https://github.com/AzaharPlus/AzaharPlus/releases).
+**AzaharPlus Enhanced (this project)** aims to polish the user interface, user experience, and overall usability on Android devices through targeted UI/UX optimizations.
 
 ---
+![01](https://github.com/user-attachments/assets/b70d7194-67df-4871-b193-ee9e2f23a82f)
 
-### Android
+![02](https://github.com/user-attachments/assets/e7a0e421-b908-4733-85b4-89787dd6f8a3)
 
-You can install the app using Obtainium:
-1. Download and install Obtainium from [here](https://github.com/ImranR98/Obtainium/releases) (use the file named `app-release.apk`)
-2. Open Obtainium and click 'Add App'
-3. Type `https://github.com/AzaharPlus/AzaharPlus` into the 'App Source URL' section
-4. Click 'Add'
-5. Click 'Install'
+![03](https://github.com/user-attachments/assets/16a383a0-7a93-4c8d-8723-1550c711c710)
 
-If you wish, you can also simply install the latest APK from the [Releases](https://github.com/AzaharPlus/AzaharPlus/releases) page.
 
----
-### Linux
+## Key improvements:
 
-It is available as an AppImage on the [Releases](https://github.com/AzaharPlus/AzaharPlus/releases) page.
+### Skin Redesign
 
-# Build instructions
+Yes. A beautiful skin redesign. I carefully repositioned buttons for more comfortable handholding. I also added three handy new buttons: Quick Save, Quick Load, and Menu.
 
-Please refer this repository's [wiki](https://github.com/AzaharPlus/AzaharPlus/wiki/Building-From-Source) for build instructions
+Note:  If your layout looks off, just reset it to match the preview.
 
-# How can I contribute?
+### Hot Corners
 
-### Pull requests
+Two hot corners are added at the bottom of the screen. You can set them to Pause, Turbo, Swap Screens, and more. You can also tap and hold the bottom center of the screen to see the time and battery.
 
-If you want to implement a change and have the technical capability to do so, we would be happy to accept your contributions.
+### Auto Save
 
-If you are contributing a new feature, it is highly suggested that you first make a Feature Request issue to discuss the addition before writing any code. This is to ensure that your time isn't wasted working on a feature which isn't deemed appropriate for the project.
+The app now auto-saves your state when you exit. Feel free to switch apps or turn off your phone anytime.
 
-After creating a pull request, please don't repeatedly merge `master` into your branch. A maintainer will update the branch for you if/ when it is appropriate to do so.
+Note: This feature overwrites state slot 10. Don’t use it for important saves. You can disable it in General Settings.
 
-# Minimum requirements
-Below are the minimum requirements to run Azahar:
+### Auto Load
 
-### Desktop
-```
-Operating System: Windows 10 (64-bit), MacOS 13.4 (Ventura), or modern 64-bit Linux
-CPU: x86-64/ARM64 CPU (Windows for ARM not supported). Single core performance higher than 1,800 on Passmark
-GPU: OpenGL 4.3 or Vulkan 1.1 support
-Memory: 2GB of RAM. 4GB is recommended
-```
-### Android
-```
-Operating System: Android 9.0+ (64-bit)
-CPU: Snapdragon 835 SoC or better
-GPU: OpenGL ES 3.2 or Vulkan 1.1 support
-Memory: 2GB of RAM. 4GB is recommended
-```
+Yes. The app now auto-loads your latest state at startup. Just launch your game and continue where you left off, no more searching for saves.
+Note: You can disable this per game. Long-press the game in the list and choose the option from the popup menu.
+
+### Overwrite Graphics API (Experimental)
+Some games may run better with a different Graphics API. You can now set this per game—just long-press the game in the list to find the option.
+Note: This is still experimental. In some games, it may not work as expected.
