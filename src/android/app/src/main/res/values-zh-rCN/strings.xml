@@ -13,6 +13,8 @@
     <string name="emulation_hot_corner_bottom_center_dialog_title">底部中间热区</string>
     <string name="emulation_hot_corner_bottom_center_option_press_to_show_time_battery">长按显示时间电量</string>
     <string name="emulation_hot_corner_bottom_center_option_off">关闭</string>
+    <string name="emulation_autosave_slot">自动保存</string>
+    <string name="emulation_occupied_autosave_slot">自动保存 - %1$tF %1$tR</string>
 </resources>
 
 

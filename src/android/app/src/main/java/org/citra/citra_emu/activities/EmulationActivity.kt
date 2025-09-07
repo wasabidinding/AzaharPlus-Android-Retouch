@@ -188,7 +188,7 @@ class EmulationActivity : AppCompatActivity() {
         if (now - lastAutoSaveUptimeMs < 2000L) return
         lastAutoSaveUptimeMs = now
 
-        val slotForAutoSave = NativeLibrary.SAVESTATE_SLOT_COUNT - 1 // 使用最后一个槽位（当前为10）
+        val slotForAutoSave = NativeLibrary.AUTO_SAVE_SLOT
         try {
             NativeLibrary.saveState(slotForAutoSave)
             Log.d("EmulationActivity", "Auto-saved state from $source (slot $slotForAutoSave)")

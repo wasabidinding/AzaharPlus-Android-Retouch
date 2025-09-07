@@ -442,7 +442,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                             if (BooleanSetting.AUTO_SAVE_ON_EXIT.boolean && NativeLibrary.isRunning()) {
                                 try {
                                     NativeLibrary.unPauseEmulation()
-                                    val slotForAutoSave = NativeLibrary.SAVESTATE_SLOT_COUNT - 1
+                                    val slotForAutoSave = NativeLibrary.AUTO_SAVE_SLOT
                                     NativeLibrary.saveState(slotForAutoSave)
                                     Toast.makeText(requireContext(), getString(R.string.game_saved), Toast.LENGTH_SHORT).show()
                                     // 略微延迟，给内核处理存档信号的时间
@@ -767,47 +767,56 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             binding.inGameMenu.findViewById(R.id.menu_emulation_save_state)
         )
 
+        // 自定义顺序：Quick Save -> Auto Save -> Slot 1..(AUTO_SAVE_SLOT-1)
+        val slotOrder = mutableListOf<Int>().apply {
+            add(NativeLibrary.QUICKSAVE_SLOT)
+            if (NativeLibrary.AUTO_SAVE_SLOT != NativeLibrary.QUICKSAVE_SLOT) add(NativeLibrary.AUTO_SAVE_SLOT)
+            for (i in 1 until NativeLibrary.AUTO_SAVE_SLOT) add(i)
+        }
+
+        val slotToMenuItem = HashMap<Int, android.view.MenuItem>()
+
         popupMenu.menu.apply {
-            for (i in 0 until NativeLibrary.SAVESTATE_SLOT_COUNT) {
-                val slot = i
-                var enableClick = isSaving
-                val text = if (slot == NativeLibrary.QUICKSAVE_SLOT) {
-                    getString(R.string.emulation_quicksave_slot)
-                } else {
-                    getString(R.string.emulation_empty_state_slot, slot)
+            for (slot in slotOrder) {
+                val enableClick = isSaving
+                val text = when (slot) {
+                    NativeLibrary.QUICKSAVE_SLOT -> getString(R.string.emulation_quicksave_slot)
+                    NativeLibrary.AUTO_SAVE_SLOT -> getString(R.string.emulation_autosave_slot)
+                    else -> getString(R.string.emulation_empty_state_slot, slot)
                 }
 
-                add(text).setEnabled(enableClick).setOnMenuItemClickListener {
-                    if(isSaving) {
+                val item = add(text).setEnabled(enableClick)
+                slotToMenuItem[slot] = item
+                item.setOnMenuItemClickListener {
+                    if (isSaving) {
                         NativeLibrary.saveState(slot)
-                        Toast.makeText(context,
-                            getString(R.string.saving),
-                            Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, getString(R.string.saving), Toast.LENGTH_SHORT).show()
                     } else {
                         NativeLibrary.loadState(slot)
                         binding.drawerLayout.close()
-                        Toast.makeText(context,
-                            getString(R.string.loading),
-                            Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, getString(R.string.loading), Toast.LENGTH_SHORT).show()
                     }
                     true
                 }
             }
         }
 
+        // 覆盖已有存档的标题，并在加载模式下启用对应菜单项
         savestates?.forEach {
-            var enableClick = true
-            val text = if(it.slot == NativeLibrary.QUICKSAVE_SLOT) {
-                getString(R.string.emulation_occupied_quicksave_slot, it.time)
-            } else{
-                getString(R.string.emulation_occupied_state_slot, it.slot, it.time)
+            val text = when (it.slot) {
+                NativeLibrary.QUICKSAVE_SLOT -> getString(R.string.emulation_occupied_quicksave_slot, it.time)
+                NativeLibrary.AUTO_SAVE_SLOT -> getString(R.string.emulation_occupied_autosave_slot, it.time)
+                else -> getString(R.string.emulation_occupied_state_slot, it.slot, it.time)
             }
-            val menuItem = popupMenu.menu.getItem(it.slot)
-            menuItem.setTitle(text).setEnabled(enableClick)
-            
-            // 如果这是最新的存档，设置高亮颜色
-            if (it == latestSavestate) {
-                menuItem.setTitle(Html.fromHtml("<font color='#1A4DAB'>$text</font>", Html.FROM_HTML_MODE_LEGACY))
+            val menuItem = slotToMenuItem[it.slot]
+            if (menuItem != null) {
+                menuItem.setTitle(text)
+                if (!isSaving) menuItem.setEnabled(true)
+
+                // 如果这是最新的存档，设置高亮颜色
+                if (it == latestSavestate) {
+                    menuItem.setTitle(Html.fromHtml("<font color='#1A4DAB'>$text</font>", Html.FROM_HTML_MODE_LEGACY))
+                }
             }
         }
 
