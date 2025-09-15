@@ -438,17 +438,45 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                         .setTitle(R.string.emulation_close_game)
                         .setMessage(R.string.emulation_close_game_message)
                         .setPositiveButton(android.R.string.ok) { _: DialogInterface?, _: Int ->
-                            // 如果开启了自动保存，则在退出前保存到最后一个槽位并提示
+                            // 如果开启了自动保存，则在退出前保存到自动保存槽位，完成后再关闭
                             if (BooleanSetting.AUTO_SAVE_ON_EXIT.boolean && NativeLibrary.isRunning()) {
                                 try {
-                                    NativeLibrary.unPauseEmulation()
                                     val slotForAutoSave = NativeLibrary.AUTO_SAVE_SLOT
+                                    // 记录保存前该槽位时间戳，用于判断完成
+                                    val prevTime = try {
+                                        NativeLibrary.getSavestateInfo()
+                                            ?.firstOrNull { it.slot == slotForAutoSave }
+                                            ?.time?.time ?: 0L
+                                    } catch (_: Exception) { 0L }
+
+                                    NativeLibrary.unPauseEmulation()
                                     NativeLibrary.saveState(slotForAutoSave)
-                                    Toast.makeText(requireContext(), getString(R.string.game_saved), Toast.LENGTH_SHORT).show()
-                                    // 略微延迟，给内核处理存档信号的时间
-                                    Handler(Looper.getMainLooper()).postDelayed({
-                                        EmulationLifecycleUtil.closeGame()
-                                    }, 600)
+
+                                    // 轮询等待保存完成（时间变更），最长等待 5 秒，避免阻塞与 ANR
+                                    val start = SystemClock.uptimeMillis()
+                                    val handler = Handler(Looper.getMainLooper())
+                                    lateinit var checkRunnable: Runnable
+                                    checkRunnable = Runnable {
+                                        val now = SystemClock.uptimeMillis()
+                                        val currentTime = try {
+                                            NativeLibrary.getSavestateInfo()
+                                                ?.firstOrNull { it.slot == slotForAutoSave }
+                                                ?.time?.time ?: 0L
+                                        } catch (_: Exception) { 0L }
+
+                                        val done = currentTime > prevTime
+                                        val timeout = now - start > 5000L
+                                        if (done) {
+                                            Toast.makeText(requireContext(), getString(R.string.game_saved), Toast.LENGTH_SHORT).show()
+                                            EmulationLifecycleUtil.closeGame()
+                                        } else if (timeout) {
+                                            // 超时仍然关闭，避免卡住
+                                            EmulationLifecycleUtil.closeGame()
+                                        } else {
+                                            handler.postDelayed(checkRunnable, 150L)
+                                        }
+                                    }
+                                    handler.postDelayed(checkRunnable, 150L)
                                 } catch (_: Exception) {
                                     EmulationLifecycleUtil.closeGame()
                                 }
