@@ -629,9 +629,15 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
     private fun togglePause() {
         if (emulationState.isPaused) {
+            // 用户显式恢复
+            emulationState.setKeepPausedRequested(false)
             emulationState.unpause()
+            hidePauseIcon()
         } else {
+            // 用户显式暂停
             emulationState.pause()
+            emulationState.setKeepPausedRequested(true)
+            showPauseIcon()
         }
     }
 
@@ -663,14 +669,33 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         binding.hotCornerOverlay.refresh()
         Choreographer.getInstance().postFrameCallback(this)
         if (NativeLibrary.isRunning()) {
-            NativeLibrary.unPauseEmulation()
-            binding.inGameMenu.menu.findItem(R.id.menu_emulation_pause)?.let { menuItem ->
-                menuItem.title = resources.getString(R.string.pause_emulation)
-                menuItem.icon = ResourcesCompat.getDrawable(
-                    resources,
-                    R.drawable.ic_pause,
-                    requireContext().theme
-                )
+            if (emulationState.isPaused && emulationState.isKeepPausedRequested) {
+                // 保持用户的手动暂停，不自动恢复，只同步菜单为“继续”
+                try {
+                    // 为避免黑屏，渲染一帧后继续保持暂停
+                    emulationState.presentFrameWhilePaused()
+                } catch (_: Exception) { }
+                showPauseIcon()
+                binding.inGameMenu.menu.findItem(R.id.menu_emulation_pause)?.let { menuItem ->
+                    menuItem.title = resources.getString(R.string.resume_emulation)
+                    menuItem.icon = ResourcesCompat.getDrawable(
+                        resources,
+                        R.drawable.ic_play,
+                        requireContext().theme
+                    )
+                }
+            } else {
+                // 非用户意图暂停（系统导致）才自动恢复
+                NativeLibrary.unPauseEmulation()
+                hidePauseIcon()
+                binding.inGameMenu.menu.findItem(R.id.menu_emulation_pause)?.let { menuItem ->
+                    menuItem.title = resources.getString(R.string.pause_emulation)
+                    menuItem.icon = ResourcesCompat.getDrawable(
+                        resources,
+                        R.drawable.ic_pause,
+                        requireContext().theme
+                    )
+                }
             }
             return
         }
@@ -1627,6 +1652,58 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         }
     }
 
+    private fun showPauseIcon() {
+        if (_binding == null) return
+        try {
+            positionPauseIconOnTopScreen()
+            binding.pauseIconOverlay.visibility = View.VISIBLE
+            // 降低底层画面亮度，突出图标
+            binding.surfaceEmulation.alpha = 0.75f
+        } catch (_: Exception) { }
+    }
+
+    private fun hidePauseIcon() {
+        if (_binding == null) return
+        try {
+            binding.pauseIconOverlay.visibility = View.GONE
+            binding.surfaceEmulation.alpha = 1f
+        } catch (_: Exception) { }
+    }
+
+    private fun positionPauseIconOnTopScreen() {
+        if (_binding == null) return
+        val layout = try { NativeLibrary.getScreenLayout() } catch (_: Exception) { null }
+        if (layout == null || layout.size < 8) {
+            // 退化：大致置于屏幕上半区中央
+            binding.pauseIconOverlay.post {
+                val parent = binding.root as View
+                val centerX = parent.width / 2f
+                val approxCenterY = parent.height / 4f
+                val halfW = binding.pauseIconOverlay.width / 2f
+                val halfH = binding.pauseIconOverlay.height / 2f
+                binding.pauseIconOverlay.x = centerX - halfW
+                binding.pauseIconOverlay.y = approxCenterY - halfH
+            }
+            return
+        }
+
+        // 布局数组: [tlx, tly, trx, try, blx, bly, brx, bry]
+        val topLeftX = layout[0]
+        val topLeftY = layout[1]
+        val topRightX = layout[2]
+        val topRightY = layout[3]
+
+        val centerX = (topLeftX + topRightX) / 2f
+        val centerY = (topLeftY + topRightY) / 2f
+
+        binding.pauseIconOverlay.post {
+            val halfW = binding.pauseIconOverlay.width / 2f
+            val halfH = binding.pauseIconOverlay.height / 2f
+            binding.pauseIconOverlay.x = centerX - halfW
+            binding.pauseIconOverlay.y = centerY - halfH
+        }
+    }
+
     private class EmulationState(private val gamePath: String) {
         private var state: State
         private var surface: Surface? = null
@@ -1751,21 +1828,56 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 }
 
                 State.PAUSED -> {
-                    Log.debug("[EmulationFragment] Resuming emulation.")
-                    NativeLibrary.unPauseEmulation()
+                    if (keepPausedRequested) {
+                        Log.debug("[EmulationFragment] Surface ready, keep paused as requested by user.")
+                        // 为避免黑屏，渲染一帧以附着内容后继续保持暂停
+                        try {
+                            presentFrameWhilePaused()
+                        } catch (_: Exception) { }
+                    } else {
+                        Log.debug("[EmulationFragment] Resuming emulation.")
+                        NativeLibrary.unPauseEmulation()
+                    }
                 }
 
                 else -> {
                     Log.debug("[EmulationFragment] Bug, run called while already running.")
                 }
             }
-            state = State.RUNNING
+            // 仅当不是“用户请求保持暂停”时，才进入 RUNNING 状态
+            if (!(state == State.PAUSED && keepPausedRequested)) {
+                state = State.RUNNING
+            }
         }
 
         private enum class State {
             STOPPED,
             RUNNING,
             PAUSED
+        }
+
+        // 记录用户是否明确要求保持暂停（用于返回前台/Surface 重建时不自动恢复）
+        private var keepPausedRequested: Boolean = false
+
+        @get:Synchronized
+        val isKeepPausedRequested: Boolean
+            get() = keepPausedRequested
+
+        @Synchronized
+        fun setKeepPausedRequested(requested: Boolean) {
+            keepPausedRequested = requested
+        }
+
+        @Synchronized
+        fun presentFrameWhilePaused() {
+            if (state != State.PAUSED) return
+            if (surface == null) return
+            try {
+                // 临时恢复一帧以将内容呈现在新 Surface 上，然后立即暂停
+                NativeLibrary.unPauseEmulation()
+                NativeLibrary.doFrame()
+                NativeLibrary.pauseEmulation()
+            } catch (_: Exception) { }
         }
 
         private fun tryApplyPerGameGraphicsApiOverride() {
