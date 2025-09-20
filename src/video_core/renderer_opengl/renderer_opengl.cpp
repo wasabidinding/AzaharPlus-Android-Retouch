@@ -20,8 +20,19 @@
 #include "video_core/host_shaders/opengl_present_frag.h"
 #include "video_core/host_shaders/opengl_present_interlaced_frag.h"
 #include "video_core/host_shaders/opengl_present_vert.h"
+#include "video_core/host_shaders/lcd_present_frag.h"
+#include "video_core/host_shaders/lcd_present_vert.h"
+
+// Global variable to store the current per-game LCD setting
+// 0 = system default, 1 = LCD on, 2 = LCD off
+static int current_per_game_lcd_setting = 0;
 
 namespace OpenGL {
+
+// Function to update the per-game LCD setting (called from JNI)
+void UpdatePerGameLcdSetting(int setting) {
+    current_per_game_lcd_setting = setting;
+}
 
 MICROPROFILE_DEFINE(OpenGL_RenderFrame, "OpenGL", "Render Frame", MP_RGB(128, 128, 64));
 MICROPROFILE_DEFINE(OpenGL_WaitPresent, "OpenGL", "Wait For Present", MP_RGB(128, 128, 128));
@@ -381,7 +392,10 @@ void RendererOpenGL::InitOpenGLObjects() {
 void RendererOpenGL::ReloadShader(Settings::StereoRenderOption render_3d) {
     // Link shaders and get variable locations
     std::string shader_data = fragment_shader_precision_OES;
+    std::string_view vertex_shader_source;
+
     if (render_3d == Settings::StereoRenderOption::Anaglyph) {
+        vertex_shader_source = HostShaders::OPENGL_PRESENT_VERT;
         if (Settings::values.anaglyph_shader_name.GetValue() == "Dubois (builtin)") {
             shader_data += HostShaders::OPENGL_PRESENT_ANAGLYPH_FRAG;
         } else {
@@ -396,13 +410,36 @@ void RendererOpenGL::ReloadShader(Settings::StereoRenderOption render_3d) {
         }
     } else if (render_3d == Settings::StereoRenderOption::Interlaced ||
                render_3d == Settings::StereoRenderOption::ReverseInterlaced) {
+        vertex_shader_source = HostShaders::OPENGL_PRESENT_VERT;
         shader_data += HostShaders::OPENGL_PRESENT_INTERLACED_FRAG;
     } else {
-        if (Settings::values.pp_shader_name.GetValue() == "None (builtin)") {
+        // Check for per-game LCD shader override
+        std::string effective_shader = Settings::values.pp_shader_name.GetValue();
+
+        // Apply per-game LCD shader override if set
+        if (current_per_game_lcd_setting == 1) {
+            // Force LCD on
+            effective_shader = "lcd (builtin)";
+        } else if (current_per_game_lcd_setting == 2) {
+            // Force LCD off
+            effective_shader = "none (builtin)";
+        }
+        // If current_per_game_lcd_setting == 0, use system default (no change)
+
+        // Use appropriate vertex shader based on the effective shader
+        if (effective_shader == "lcd (builtin)") {
+            vertex_shader_source = HostShaders::LCD_PRESENT_VERT;
+        } else {
+            vertex_shader_source = HostShaders::OPENGL_PRESENT_VERT;
+        }
+
+        if (effective_shader == "none (builtin)") {
             shader_data += HostShaders::OPENGL_PRESENT_FRAG;
+        } else if (effective_shader == "lcd (builtin)") {
+            shader_data += HostShaders::LCD_PRESENT_FRAG;
         } else {
             std::string shader_text = OpenGL::GetPostProcessingShaderCode(
-                false, Settings::values.pp_shader_name.GetValue());
+                false, effective_shader);
             if (shader_text.empty()) {
                 // Should probably provide some information that the shader couldn't load
                 shader_data += HostShaders::OPENGL_PRESENT_FRAG;
@@ -411,7 +448,8 @@ void RendererOpenGL::ReloadShader(Settings::StereoRenderOption render_3d) {
             }
         }
     }
-    shader.Create(HostShaders::OPENGL_PRESENT_VERT, shader_data);
+    
+    shader.Create(vertex_shader_source, shader_data);
     state.draw.shader_program = shader.handle;
     state.Apply();
     uniform_modelview_matrix = glGetUniformLocation(shader.handle, "modelview_matrix");
@@ -433,6 +471,7 @@ void RendererOpenGL::ReloadShader(Settings::StereoRenderOption render_3d) {
     uniform_i_resolution = glGetUniformLocation(shader.handle, "i_resolution");
     uniform_o_resolution = glGetUniformLocation(shader.handle, "o_resolution");
     uniform_layer = glGetUniformLocation(shader.handle, "layer");
+    uniform_is_portrait = glGetUniformLocation(shader.handle, "is_portrait");
     attrib_position = glGetAttribLocation(shader.handle, "vert_position");
     attrib_tex_coord = glGetAttribLocation(shader.handle, "vert_tex_coord");
 }
@@ -680,6 +719,10 @@ void RendererOpenGL::DrawScreens(const Layout::FramebufferLayout& layout, bool f
 
     // Bind texture in Texture Unit 0
     glUniform1i(uniform_color_texture, 0);
+    // Pass orientation to shader (1 = portrait, 0 = landscape)
+    if (uniform_is_portrait != static_cast<GLuint>(-1)) {
+        glUniform1i(uniform_is_portrait, layout.is_portrait ? 1 : 0);
+    }
 
     const bool stereo_single_screen =
         layout.render_3d_mode == Settings::StereoRenderOption::Anaglyph ||

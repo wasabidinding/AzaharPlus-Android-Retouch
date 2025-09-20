@@ -266,6 +266,18 @@ object NativeLibrary {
     external fun playTimeManagerGetPlayTime(titleId: Long): Long
     external fun playTimeManagerGetCurrentTitleId(): Long
 
+    /**
+     * Gets the per-game LCD shader setting for the current running title
+     * Returns: 0 = system default, 1 = LCD on, 2 = LCD off
+     */
+    external fun getPerGameLcdSetting(titleId: Long): Int
+
+    /**
+     * Updates the per-game LCD shader setting
+     * @param setting 0 = system default, 1 = LCD on, 2 = LCD off
+     */
+    external fun updatePerGameLcdSetting(setting: Int)
+
     private external fun uninstallTitle(titleId: Long, mediaType: Int): Boolean
     fun uninstallTitle(titleId: Long, mediaType: Game.MediaType): Boolean {
         return uninstallTitle(titleId, mediaType.value)

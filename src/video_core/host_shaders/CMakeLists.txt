@@ -18,6 +18,8 @@ set(SHADER_FILES
     opengl_present.vert
     opengl_present_anaglyph.frag
     opengl_present_interlaced.frag
+    lcd_present.frag
+    lcd_present.vert
     vulkan_depth_to_buffer.comp
     vulkan_present.frag
     vulkan_present.vert

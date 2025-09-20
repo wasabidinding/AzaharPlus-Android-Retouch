@@ -285,6 +285,9 @@
     <string name="use_integer_scaling_description">Scales the screens with an integer multiplier of the original 3DS screen. For layouts with two different screen sizes, the largest screen is integer-scaled.</string>
     <string name="texture_filter_name">Texture Filter</string>
     <string name="texture_filter_description">Enhances the visuals of applications by applying a filter to textures. The supported filters are Anime4K Ultrafast, Bicubic, ScaleForce, xBRZ freescale, and MMPX.</string>
+    <string name="post_processing_shader_name">Post-Processing Shader</string>
+    <string name="post_processing_shader_description">Applies visual effects to enhance the gaming experience. Choose from built-in shaders like LCD effect for retro gaming.</string>
+    <string name="lcd_effect">LCD Effect</string>
     <string name="delay_render_thread">Delay Game Render Thread</string>
     <string name="delay_render_thread_description">Delay the game render thread when it submits data to the GPU. Helps with performance issues in the (very few) applications with dynamic framerates.</string>
     <string name="advanced">Advanced</string>

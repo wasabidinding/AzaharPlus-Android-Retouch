@@ -312,6 +312,15 @@
         <item>2</item>
     </integer-array>
 
+    <string-array name="postProcessingShaderNames">
+        <item>None</item>
+        <item>LCD Effect</item>
+    </string-array>
+    <string-array name="postProcessingShaderValues">
+        <item>none (builtin)</item>
+        <item>lcd (builtin)</item>
+    </string-array>
+
     <string-array name="staticThemeNames">
         <item>Blue (Default)</item>
         <item>Cyan</item>
