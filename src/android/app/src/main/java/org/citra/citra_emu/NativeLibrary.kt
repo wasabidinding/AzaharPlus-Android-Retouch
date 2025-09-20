@@ -205,6 +205,17 @@ object NativeLibrary {
 
     external fun disableTemporaryFrameLimit()
 
+    /**
+     * Gets the per-game LCD shader setting for the current running title
+     * Returns: 0 = system default, 1 = LCD on, 2 = LCD off
+     */
+    external fun getPerGameLcdSetting(titleId: Long): Int
+
+    /**
+     * Updates the per-game LCD shader setting
+     * @param setting 0 = system default, 1 = LCD on, 2 = LCD off
+     */
+    external fun updatePerGameLcdSetting(setting: Int)
 
     external fun downloadTitleFromNus(title: Long): InstallStatus
 

@@ -214,6 +214,8 @@
     <string name="linear_filtering_description">开启后，游戏视觉效果会更加平滑。</string>
     <string name="texture_filter_name">纹理滤镜</string>
     <string name="texture_filter_description">通过对纹理使用滤镜来增强应用的视觉效果。支持的滤镜包括 Anime4K Ultrafast、Bicubic、ScaleForce、xBRZ freescale 和 MMPX。</string>
+    <string name="post_processing_shader_name">后处理着色器</string>
+    <string name="post_processing_shader_description">应用视觉效果来增强游戏体验。选择内置着色器，如复古游戏的 LCD 效果。</string>
     <string name="delay_render_thread">延迟游戏渲染线程</string>
     <string name="delay_render_thread_description">在游戏渲染线程向 GPU 提交数据时延迟线程。有助于解决（极少数）具有动态帧率应用的性能问题。</string>
     <string name="advanced">高级选项\"</string>
@@ -829,5 +831,8 @@
     <string name="game_loaded_successfully">游戏加载完成</string>
     <string name="game_ready">游戏已就绪</string>
     <string name="auto_load_state">自动读取存档</string>
+    
+    <!-- Post-processing shader options -->
+    <string name="lcd_effect">LCD 效果</string>
 
 </resources>

@@ -22,6 +22,8 @@ add_library(citra-android SHARED
     game_info.cpp
     id_cache.cpp
     id_cache.h
+    lcd_settings.cpp
+    lcd_settings.h
     native.cpp
     ndk_motion.cpp
     ndk_motion.h

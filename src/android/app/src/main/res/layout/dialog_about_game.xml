@@ -224,6 +224,43 @@
                     android:layout_centerVertical="true"
                     android:text="@string/system_default" />
             </RelativeLayout>
+
+            <com.google.android.material.divider.MaterialDivider
+                android:id="@+id/divider_lcd"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp" />
+
+            <!-- LCD Shader row: title left, value right -->
+            <RelativeLayout
+                android:id="@+id/lcd_row"
+                android:layout_width="match_parent"
+                android:layout_height="56dp"
+                android:paddingVertical="4dp"
+                android:background="?attr/selectableItemBackground"
+                android:clickable="true"
+                android:focusable="true">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/lcd_shader_title"
+                    style="@style/TextAppearance.Material3.TitleMedium"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:textStyle="normal"
+                    android:text="@string/post_processing_shader_name" />
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/lcd_shader_value"
+                    style="@style/TextAppearance.Material3.BodyMedium"
+                    android:textStyle="bold"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true"
+                    android:text="@string/system_default" />
+            </RelativeLayout>
         </LinearLayout>
 
     </androidx.constraintlayout.widget.ConstraintLayout>

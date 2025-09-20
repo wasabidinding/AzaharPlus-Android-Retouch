@@ -376,6 +376,11 @@ public:
 
     bool IsInitialSetup();
 
+    /// Gets the current running title ID
+    [[nodiscard]] u64 GetCurrentTitleId() const {
+        return title_id;
+    }
+
 private:
     /**
      * Initialize the emulated system.

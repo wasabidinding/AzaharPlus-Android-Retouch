@@ -22,6 +22,9 @@ class System;
 
 namespace OpenGL {
 
+// Function to update the per-game LCD setting (called from JNI)
+void UpdatePerGameLcdSetting(int setting);
+
 /// Structure used for storing information about the textures for each 3DS screen
 struct TextureInfo {
     OGLTexture resource;
@@ -107,6 +110,7 @@ private:
     GLuint uniform_i_resolution;
     GLuint uniform_o_resolution;
     GLuint uniform_layer;
+    GLuint uniform_is_portrait;
 
     // Shader attribute input indices
     GLuint attrib_position;

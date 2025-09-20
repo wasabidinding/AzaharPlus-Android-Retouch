@@ -87,10 +87,18 @@ void ConfigureEnhancements::updateShaders(Settings::StereoRenderOption stereo_op
         current_shader = Settings::values.anaglyph_shader_name.GetValue();
     } else {
         ui->shader_combobox->addItem(QStringLiteral("none (builtin)"));
+        ui->shader_combobox->addItem(QStringLiteral("lcd (builtin)"));
         current_shader = Settings::values.pp_shader_name.GetValue();
     }
 
-    ui->shader_combobox->setCurrentIndex(0);
+    // Set the current shader selection
+    if (current_shader == "none (builtin)") {
+        ui->shader_combobox->setCurrentIndex(0);
+    } else if (current_shader == "lcd (builtin)") {
+        ui->shader_combobox->setCurrentIndex(1);
+    } else {
+        ui->shader_combobox->setCurrentIndex(0);
+    }
 
 #ifdef ENABLE_OPENGL
     for (const auto& shader : OpenGL::GetPostProcessingShaderList(

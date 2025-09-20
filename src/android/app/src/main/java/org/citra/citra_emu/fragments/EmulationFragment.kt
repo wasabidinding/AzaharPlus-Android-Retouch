@@ -1823,6 +1823,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                         Log.debug("[EmulationFragment] Starting emulation thread.")
                         // Apply per-game graphics API override right before run as an extra safety
                         tryApplyPerGameGraphicsApiOverride()
+                        // Apply per-game LCD shader override right before run
+                        tryApplyPerGameLcdOverride()
                         NativeLibrary.run(gamePath)
                     }, "NativeEmulation").start()
                 }
@@ -1910,6 +1912,22 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                     } catch (_: Exception) { }
                 }
                 org.citra.citra_emu.NativeLibrary.setOverrideGraphicsApi(targetApi)
+            } catch (_: Exception) { }
+        }
+
+        private fun tryApplyPerGameLcdOverride() {
+            try {
+                val ctx = CitraApplication.appContext
+                val prefs = androidx.preference.PreferenceManager.getDefaultSharedPreferences(ctx)
+                // Resolve titleId from path to check per-game LCD setting
+                val titleId = org.citra.citra_emu.NativeLibrary.getTitleId(gamePath)
+                if (titleId == 0L) return
+                
+                // Read per-game LCD selection: 0 = system default, 1 = LCD on, 2 = LCD off
+                val lcdSelection = prefs.getInt("override_lcd_shader_value_" + titleId, 0)
+                
+                // Apply the LCD setting to the native renderer
+                org.citra.citra_emu.NativeLibrary.updatePerGameLcdSetting(lcdSelection)
             } catch (_: Exception) { }
         }
     }

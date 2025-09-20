@@ -32,6 +32,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import org.citra.citra_emu.CitraApplication
 import org.citra.citra_emu.HomeNavigationDirections
+import org.citra.citra_emu.NativeLibrary
 import org.citra.citra_emu.R
 import org.citra.citra_emu.model.Game
 import androidx.preference.PreferenceManager
@@ -132,6 +133,36 @@ class AboutGameBottomSheet : BottomSheetDialogFragment() {
         apiValueView.setOnClickListener(openChooser)
         view.findViewById<View>(R.id.api_row).setOnClickListener(openChooser)
 
+        // LCD Shader 覆盖设置
+        val lcdShaderValueView = view.findViewById<TextView>(R.id.lcd_shader_value)
+        val perGameLcdOverrideKey = "override_lcd_shader_value_" + game.titleId // 0 system, 1 on, 2 off
+        val lcdItems = listOf(
+            getString(R.string.system_default),
+            getString(R.string.lcd_effect),
+            getString(R.string.none)
+        )
+        val savedLcdValue = PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext).getInt(perGameLcdOverrideKey, 0)
+        lcdShaderValueView.text = lcdItems.getOrElse(savedLcdValue) { lcdItems[0] }
+        
+        val openLcdChooser: (View) -> Unit = {
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.post_processing_shader_name)
+                .setSingleChoiceItems(lcdItems.toTypedArray(), savedLcdValue) { dialog, which ->
+                    PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext)
+                        .edit().putInt(perGameLcdOverrideKey, which).apply()
+                    lcdShaderValueView.text = lcdItems[which]
+                    
+                    // Update the global setting for the current game
+                    updatePerGameLcdSetting(game.titleId, which)
+                    
+                    dialog.dismiss()
+                }
+                .setNegativeButton(R.string.close, null)
+                .show()
+        }
+        lcdShaderValueView.setOnClickListener(openLcdChooser)
+        view.findViewById<View>(R.id.lcd_row).setOnClickListener(openLcdChooser)
+
         view.findViewById<MaterialButton>(R.id.game_shortcut).setOnClickListener {
             val shortcutManager = requireContext().getSystemService(ShortcutManager::class.java)
             if (shortcutManager == null || !shortcutManager.isRequestPinShortcutSupported) {
@@ -176,7 +207,12 @@ class AboutGameBottomSheet : BottomSheetDialogFragment() {
             showUninstallContextMenu(it)
         }
 
-        // 移除直接在关于面板选择图标的入口，改为在“添加到主屏幕”流程中选择
+        // 移除直接在关于面板选择图标的入口，改为在"添加到主屏幕"流程中选择
+    }
+
+    private fun updatePerGameLcdSetting(titleId: Long, setting: Int) {
+        // Update the per-game LCD setting in the native renderer
+        NativeLibrary.updatePerGameLcdSetting(setting)
     }
 
     private fun createPinnedShortcut(srcBitmap: Bitmap?) {
