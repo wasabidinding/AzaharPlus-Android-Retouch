@@ -40,6 +40,7 @@ import org.citra.citra_emu.features.settings.model.IntSetting
 import org.citra.citra_emu.utils.FileUtil
 import org.citra.citra_emu.utils.GameIconUtils
 import org.citra.citra_emu.viewmodel.GamesViewModel
+import org.citra.citra_emu.utils.OverlayPreferencesManager
 
 class AboutGameBottomSheet : BottomSheetDialogFragment() {
     private lateinit var game: Game
@@ -99,6 +100,16 @@ class AboutGameBottomSheet : BottomSheetDialogFragment() {
         autoLoadStateSwitch.isChecked = preferences.getBoolean(autoLoadStateKey, true)
         autoLoadStateSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferences.edit().putBoolean(autoLoadStateKey, isChecked).apply()
+        }
+
+        val overlayFallback = overlayFallbackKey()
+        val independentOverlaySwitch = view.findViewById<MaterialSwitch>(R.id.independent_overlay_switch)
+        independentOverlaySwitch.isChecked = OverlayPreferencesManager.isIndependentEnabled(game.titleId, overlayFallback)
+        independentOverlaySwitch.setOnCheckedChangeListener { _, isChecked ->
+            OverlayPreferencesManager.setIndependentEnabled(game.titleId, overlayFallback, isChecked)
+            if (isChecked) {
+                OverlayPreferencesManager.ensureGameProfile(game.titleId, overlayFallback)
+            }
         }
 
         view.findViewById<MaterialButton>(R.id.about_game_play).setOnClickListener {
@@ -360,6 +371,15 @@ class AboutGameBottomSheet : BottomSheetDialogFragment() {
         )
     }
 
+    private fun overlayFallbackKey(): String {
+        return when {
+            game.filename.isNotBlank() -> game.filename
+            game.path.isNotBlank() -> game.path
+            game.title.isNotBlank() -> game.title
+            else -> "unknown"
+        }
+    }
+
     private fun decodeDownsampledBitmap(uri: Uri, targetMinSide: Int): Bitmap? {
         return try {
             val resolver = requireContext().contentResolver
@@ -416,5 +436,3 @@ class AboutGameBottomSheet : BottomSheetDialogFragment() {
         }
     }
 }
-
-

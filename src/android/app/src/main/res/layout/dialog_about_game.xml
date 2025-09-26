@@ -188,6 +188,29 @@
                     android:layout_centerVertical="true" />
             </RelativeLayout>
 
+            <RelativeLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minHeight="56dp"
+                android:paddingVertical="4dp">
+
+                <com.google.android.material.textview.MaterialTextView
+                    android:id="@+id/independent_overlay_label"
+                    style="@style/TextAppearance.Material3.TitleMedium"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentStart="true"
+                    android:layout_centerVertical="true"
+                    android:text="@string/independent_controller_settings" />
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/independent_overlay_switch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentEnd="true"
+                    android:layout_centerVertical="true" />
+            </RelativeLayout>
+
             <com.google.android.material.divider.MaterialDivider
                 android:id="@+id/divider_api"
                 android:layout_width="match_parent"
