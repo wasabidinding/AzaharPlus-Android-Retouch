@@ -94,10 +94,14 @@ import org.citra.citra_emu.viewmodel.EmulationViewModel
 import org.citra.citra_emu.overlay.HotCornerOverlay
 import org.citra.citra_emu.utils.HotCornerSettings
 import org.citra.citra_emu.utils.TurboHelper
+import org.citra.citra_emu.utils.OverlayPreferencesManager
 
 class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.FrameCallback {
-    private val preferences: SharedPreferences
+    private val defaultPreferences: SharedPreferences
         get() = PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext)
+
+    private val overlayPreferences: SharedPreferences
+        get() = OverlayPreferencesManager.getActivePreferences()
 
     private lateinit var emulationState: EmulationState
     private var perfStatsUpdater: Runnable? = null
@@ -203,6 +207,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        applyOverlayScope()
         _binding = FragmentEmulationBinding.inflate(inflater)
         binding.inGameMenu.menu.findItem(R.id.menu_landscape_screen_layout).isVisible =
             CitraApplication.appContext.resources.configuration.orientation !=
@@ -877,7 +882,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
 
     private fun displaySavestateWarning() {
-        if (preferences.getBoolean("savestateWarningShown", false)) {
+        if (defaultPreferences.getBoolean("savestateWarningShown", false)) {
             return
         }
 
@@ -887,7 +892,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             .setMessage(R.string.savestate_warning_message)
             .setView(dialogCheckboxBinding.root)
             .setPositiveButton(android.R.string.ok) { _: DialogInterface?, _: Int ->
-                preferences.edit()
+                defaultPreferences.edit()
                     .putBoolean("savestateWarningShown", dialogCheckboxBinding.checkBox.isChecked)
                     .apply()
             }
@@ -1385,6 +1390,38 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         popupMenu.show()
     }
 
+    override fun onDestroyView() {
+        OverlayPreferencesManager.resetToGeneral()
+        super.onDestroyView()
+    }
+
+    private fun applyOverlayScope() {
+        if (!this::game.isInitialized) {
+            OverlayPreferencesManager.resetToGeneral()
+            return
+        }
+        val fallback = overlayFallbackKey()
+        val independent = OverlayPreferencesManager.isIndependentEnabled(game.titleId, fallback)
+        val scope = if (independent) {
+            OverlayPreferencesManager.Scope.Game(game.titleId, fallback)
+        } else {
+            OverlayPreferencesManager.Scope.General
+        }
+        OverlayPreferencesManager.setActiveScope(scope)
+    }
+
+    private fun overlayFallbackKey(): String {
+        if (!this::game.isInitialized) {
+            return ""
+        }
+        return when {
+            game.filename.isNotBlank() -> game.filename
+            game.path.isNotBlank() -> game.path
+            game.title.isNotBlank() -> game.title
+            else -> "unknown"
+        }
+    }
+
     private fun editControlsPlacement() {
         if (binding.surfaceInputOverlay.isInEditMode) {
             binding.controlEditActions.visibility = View.GONE
@@ -1402,7 +1439,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     }
 
     private fun exportOverlayLayoutToClipboard() {
-        val prefs = PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext)
+        val prefs = overlayPreferences
         val isPortrait = resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT
         val orientationSuffix = if (isPortrait) "-Portrait" else ""
 
@@ -1475,7 +1512,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     }
 
     private fun showToggleControlsDialog() {
-        val editor = preferences.edit()
+        val editor = overlayPreferences.edit()
         val enabledButtons = BooleanArray(19)
         enabledButtons.forEachIndexed { i: Int, _: Boolean ->
             // Buttons that are disabled by default
@@ -1484,7 +1521,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 // TODO: Remove these magic numbers
                 6, 7, 12, 13, 14, 15, 16, 17, 18 -> defaultValue = false
             }
-            enabledButtons[i] = preferences.getBoolean("buttonToggle$i", defaultValue)
+            enabledButtons[i] = overlayPreferences.getBoolean("buttonToggle$i", defaultValue)
         }
 
         val dialog = MaterialAlertDialogBuilder(requireContext())
@@ -1518,7 +1555,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         sliderBinding.apply {
             slider.valueTo = 150f
             slider.valueFrom = 0f
-            slider.value = preferences.getInt(target, 50).toFloat()
+            slider.value = overlayPreferences.getInt(target, 50).toFloat()
             textValue.setText((slider.value + 50).toInt().toString())
             textValue.addTextChangedListener( object : TextWatcher {
                 override fun afterTextChanged(s: Editable) {
@@ -1567,7 +1604,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         sliderBinding.apply {
             slider.valueFrom = 0f
             slider.valueTo = 100f
-            slider.value = preferences.getInt("controlOpacity", 50).toFloat()
+            slider.value = overlayPreferences.getInt("controlOpacity", 50).toFloat()
             textValue.setText(slider.value.toInt().toString())
 
             textValue.addTextChangedListener( object : TextWatcher {
@@ -1614,14 +1651,14 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     }
 
     private fun setControlScale(scale: Int, target: String) {
-        preferences.edit()
+        overlayPreferences.edit()
             .putInt(target, scale)
             .apply()
         binding.surfaceInputOverlay.refreshControls()
     }
 
     private fun resetScale(target: String) {
-        preferences.edit().putInt(
+        overlayPreferences.edit().putInt(
             target,
             50
         ).apply()
@@ -1651,7 +1688,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     }
 
     private fun setControlOpacity(opacity: Int) {
-        preferences.edit()
+        overlayPreferences.edit()
             .putInt("controlOpacity", opacity)
             .apply()
         binding.surfaceInputOverlay.refreshControls()
@@ -1669,11 +1706,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
     private fun resetInputOverlay() {
         resetAllScales()
-        preferences.edit()
+        overlayPreferences.edit()
             .putInt("controlOpacity", 100)
             .apply()
 
-        val editor = preferences.edit()
+        val editor = overlayPreferences.edit()
         for (i in 0 until 19) {
             var defaultValue = true
             when (i) {

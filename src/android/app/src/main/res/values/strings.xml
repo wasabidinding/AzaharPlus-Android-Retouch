@@ -419,6 +419,7 @@
     <string name="game_ready">Game ready</string>
     <string name="game_saved">Game saved</string>
     <string name="auto_load_state">Auto Load State</string>
+    <string name="independent_controller_settings">Independent Controller Settings</string>
     <string name="next">Next</string>
     <string name="back">Back</string>
     <string name="save">Save</string>

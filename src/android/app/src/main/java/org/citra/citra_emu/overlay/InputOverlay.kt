@@ -25,12 +25,11 @@ import android.os.Vibrator
 import android.os.VibratorManager
 import android.view.HapticFeedbackConstants
 import androidx.core.content.ContextCompat
-import androidx.preference.PreferenceManager
-import org.citra.citra_emu.CitraApplication
 import org.citra.citra_emu.NativeLibrary
 import org.citra.citra_emu.R
 import org.citra.citra_emu.utils.EmulationMenuSettings
 import org.citra.citra_emu.utils.TurboHelper
+import org.citra.citra_emu.utils.OverlayPreferencesManager
 import java.lang.NullPointerException
 import kotlin.math.min
 import android.widget.Toast
@@ -1236,7 +1235,7 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
 
     companion object {
         private val preferences
-            get() = PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext)
+            get() = OverlayPreferencesManager.getActivePreferences()
 
         /**
          * Resizes a [Bitmap] by a given scale factor
