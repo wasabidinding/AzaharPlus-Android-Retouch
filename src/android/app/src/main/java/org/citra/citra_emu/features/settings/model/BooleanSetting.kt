@@ -20,6 +20,7 @@ enum class BooleanSetting(
     DELAY_START_LLE_MODULES("delay_start_for_lle_modules", Settings.SECTION_DEBUG, true),
     DETERMINISTIC_ASYNC_OPERATIONS("deterministic_async_operations", Settings.SECTION_DEBUG, false),
     REQUIRED_ONLINE_LLE_MODULES("enable_required_online_lle_modules", Settings.SECTION_SYSTEM, false),
+    AUTO_RESUME_LAST_GAME("auto_resume_last_game", Settings.SECTION_CORE, true),
     AUTO_SAVE_ON_EXIT("auto_save_on_exit", Settings.SECTION_CORE, true);
 
     override var boolean: Boolean = defaultValue
