@@ -6,6 +6,8 @@
     <string name="reset_layout_confirmation_message">此操作将把竖屏布局数值恢复为默认。是否继续？</string>
     <string name="export_controls">导出</string>
     <string name="export_controls_copied">按键布局已复制到剪贴板</string>
+    <string name="auto_resume_last_game">启动时自动恢复上次游戏</string>
+    <string name="auto_resume_last_game_description">打开应用时直接启动上次游玩的游戏。禁用后将始终进入主界面。</string>
     <string name="auto_save_on_exit">退出时自动保存</string>
     <string name="auto_save_on_exit_description">返回桌面或切换应用时自动保存游戏状态。</string>
     <string name="game_saved">游戏已保存</string>
@@ -17,4 +19,3 @@
     <string name="emulation_occupied_autosave_slot">自动保存 - %1$tF %1$tR</string>
     <string name="independent_controller_settings">独立按键设置</string>
 </resources>
-

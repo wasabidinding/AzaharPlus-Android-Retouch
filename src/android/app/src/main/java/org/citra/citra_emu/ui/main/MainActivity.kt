@@ -47,6 +47,7 @@ import org.citra.citra_emu.NativeLibrary
 import org.citra.citra_emu.R
 import org.citra.citra_emu.contracts.OpenFileResultContract
 import org.citra.citra_emu.databinding.ActivityMainBinding
+import org.citra.citra_emu.features.settings.model.BooleanSetting
 import org.citra.citra_emu.features.settings.model.Settings
 import org.citra.citra_emu.features.settings.model.SettingsViewModel
 import org.citra.citra_emu.features.settings.ui.SettingsActivity
@@ -61,6 +62,7 @@ import org.citra.citra_emu.utils.CitraDirectoryUtils
 import org.citra.citra_emu.utils.DirectoryInitialization
 import org.citra.citra_emu.utils.FileBrowserHelper
 import org.citra.citra_emu.utils.InsetsHelper
+import org.citra.citra_emu.utils.LastPlayedGameManager
 import org.citra.citra_emu.utils.RefreshRateUtil
 import org.citra.citra_emu.utils.PermissionsHandler
 import org.citra.citra_emu.utils.ThemeUtil
@@ -102,6 +104,8 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         ThemeUtil.ThemeChangeListener(this)
         ThemeUtil.setTheme(this)
         super.onCreate(savedInstanceState)
+
+        maybeAutoResumeLastGame(savedInstanceState)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -352,6 +356,55 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
                 binding.navigationView.visibility = View.INVISIBLE
             }
         }.start()
+    }
+
+    private fun maybeAutoResumeLastGame(savedInstanceState: Bundle?): Boolean {
+        if (savedInstanceState != null) {
+            return false
+        }
+
+        if (!isLauncherEntryIntent(intent)) {
+            return false
+        }
+
+        val prefs = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+        val firstTimeSetup = prefs.getBoolean(Settings.PREF_FIRST_APP_LAUNCH, true)
+        if (firstTimeSetup) {
+            return false
+        }
+
+        if (!PermissionsHandler.hasWriteAccess(this)) {
+            return false
+        }
+
+        if (!DirectoryInitialization.areCitraDirectoriesReady()) {
+            return false
+        }
+
+        if (CitraDirectoryUtils.needToUpdateManually()) {
+            return false
+        }
+
+        if (!BooleanSetting.AUTO_RESUME_LAST_GAME.boolean) {
+            return false
+        }
+
+        val lastGame = LastPlayedGameManager.resolveLaunchableGame() ?: return false
+        startActivity(lastGame.launchIntent)
+        return true
+    }
+
+    private fun isLauncherEntryIntent(sourceIntent: Intent?): Boolean {
+        if (sourceIntent == null) {
+            return false
+        }
+        if (sourceIntent.action != Intent.ACTION_MAIN) {
+            return false
+        }
+
+        val categories = sourceIntent.categories ?: return false
+        return categories.contains(Intent.CATEGORY_LAUNCHER) ||
+                categories.contains(Intent.CATEGORY_LEANBACK_LAUNCHER)
     }
 
     private fun showStatusBarShade(visible: Boolean) {

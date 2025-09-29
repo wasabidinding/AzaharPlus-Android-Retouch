@@ -305,6 +305,8 @@
     <string name="android_hide_images_description">Prevent 3DS camera, screenshot, and custom texture images from being indexed by Android and displayed in the gallery. Your device may need to be rebooted after changing this setting to take effect.</string>
     <string name="turbo_limit">Turbo Speed Limit</string>
     <string name="turbo_limit_description">Emulation speed limit used while the turbo hotkey is active.</string>
+    <string name="auto_resume_last_game">Auto Resume Last Game</string>
+    <string name="auto_resume_last_game_description">Automatically launch the last played game when opening the app. Disable to always start on the main screen.</string>
     <string name="auto_save_on_exit">Auto Save on Exit</string>
     <string name="auto_save_on_exit_description">Automatically save the game state when leaving the app (returning to home screen or switching apps).</string>
     <string name="expand_to_cutout_area">Expand to Cutout Area</string>

@@ -268,6 +268,15 @@ class SettingsFragmentPresenter(private val fragmentView: SettingsFragmentView) 
             )
             add(
                 SwitchSetting(
+                    BooleanSetting.AUTO_RESUME_LAST_GAME,
+                    R.string.auto_resume_last_game,
+                    R.string.auto_resume_last_game_description,
+                    BooleanSetting.AUTO_RESUME_LAST_GAME.key,
+                    BooleanSetting.AUTO_RESUME_LAST_GAME.defaultValue
+                )
+            )
+            add(
+                SwitchSetting(
                     BooleanSetting.AUTO_SAVE_ON_EXIT,
                     R.string.auto_save_on_exit,
                     R.string.auto_save_on_exit_description,

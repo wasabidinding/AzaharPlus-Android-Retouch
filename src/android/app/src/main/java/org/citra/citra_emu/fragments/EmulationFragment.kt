@@ -89,6 +89,7 @@ import org.citra.citra_emu.utils.GameHelper
 import org.citra.citra_emu.utils.GameIconUtils
 import org.citra.citra_emu.utils.EmulationLifecycleUtil
 import org.citra.citra_emu.utils.Log
+import org.citra.citra_emu.utils.LastPlayedGameManager
 import org.citra.citra_emu.utils.ViewUtils
 import org.citra.citra_emu.viewmodel.EmulationViewModel
 import org.citra.citra_emu.overlay.HotCornerOverlay
@@ -192,6 +193,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         }
 
         Log.info("[EmulationFragment] Starting application " + game.path)
+        LastPlayedGameManager.save(game)
 
         // So this fragment doesn't restart on configuration changes; i.e. rotation.
         retainInstance = true

@@ -57,6 +57,8 @@ enum class BooleanSetting(
     ANDROID_HIDE_IMAGES(SettingKeys.android_hide_images(), Settings.SECTION_MISC, false),
     APPLY_REGION_FREE_PATCH(SettingKeys.apply_region_free_patch(), Settings.SECTION_SYSTEM, true),
     USE_INTEGER_SCALING(SettingKeys.use_integer_scaling(), Settings.SECTION_RENDERER, false),
+    CUSTOM_LAYOUT("custom_layout", Settings.SECTION_LAYOUT, false),
+    AUTO_RESUME_LAST_GAME("auto_resume_last_game", Settings.SECTION_CORE, true),
     AUTO_SAVE_ON_EXIT("auto_save_on_exit", Settings.SECTION_CORE, true);
 
     override var boolean: Boolean = defaultValue
