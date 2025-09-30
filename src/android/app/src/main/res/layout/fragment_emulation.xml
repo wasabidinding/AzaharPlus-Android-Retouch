@@ -110,81 +110,111 @@
             android:focusable="true"
             android:elevation="10dp" />
 
-        <com.google.android.material.card.MaterialCardView
-            android:id="@+id/loading_indicator"
-            style="?attr/materialCardViewOutlinedStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/loading_container"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
             android:layout_gravity="center"
-            android:focusable="false"
             android:elevation="12dp">
 
-            <androidx.constraintlayout.widget.ConstraintLayout
-                android:id="@+id/loading_layout"
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/loading_indicator"
+                style="?attr/materialCardViewOutlinedStyle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_margin="24dp"
-                android:gravity="center_horizontal"
-                android:orientation="horizontal">
+                android:focusable="false"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
 
-                <ImageView
-                    android:id="@+id/loading_image"
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toTopOf="parent"
-                    tools:src="@drawable/no_icon" />
+                <androidx.constraintlayout.widget.ConstraintLayout
+                    android:id="@+id/loading_layout"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_margin="24dp"
+                    android:gravity="center_horizontal"
+                    android:orientation="horizontal">
 
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_marginStart="20dp"
-                    android:orientation="vertical"
-                    android:animateLayoutChanges="true"
-                    app:layout_constraintBottom_toBottomOf="parent"
-                    app:layout_constraintStart_toEndOf="@+id/loading_image"
-                    app:layout_constraintTop_toTopOf="parent">
+                    <ImageView
+                        android:id="@+id/loading_image"
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toStartOf="parent"
+                        app:layout_constraintTop_toTopOf="parent"
+                        tools:src="@drawable/no_icon" />
 
-                    <com.google.android.material.textview.MaterialTextView
-                        android:id="@+id/loading_title"
-                        style="@style/TextAppearance.Material3.TitleMedium"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:textAlignment="viewStart"
-                        tools:text="@string/games" />
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="match_parent"
+                        android:layout_marginStart="20dp"
+                        android:animateLayoutChanges="true"
+                        android:orientation="vertical"
+                        app:layout_constraintBottom_toBottomOf="parent"
+                        app:layout_constraintStart_toEndOf="@+id/loading_image"
+                        app:layout_constraintTop_toTopOf="parent">
 
-                    <com.google.android.material.textview.MaterialTextView
-                        android:id="@+id/loading_text"
-                        style="@style/TextAppearance.Material3.TitleSmall"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:text="@string/loading"
-                        android:textAlignment="viewStart" />
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/loading_title"
+                            style="@style/TextAppearance.Material3.TitleMedium"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:textAlignment="viewStart"
+                            tools:text="@string/games" />
 
-                    <com.google.android.material.progressindicator.LinearProgressIndicator
-                        android:id="@+id/loading_progress_indicator"
-                        android:layout_width="192dp"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:indeterminate="true"
-                        app:trackCornerRadius="8dp" />
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/loading_text"
+                            style="@style/TextAppearance.Material3.TitleSmall"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="@string/loading"
+                            android:textAlignment="viewStart" />
 
-                    <com.google.android.material.textview.MaterialTextView
-                        android:id="@+id/loading_progress_text"
-                        style="@style/TextAppearance.Material3.LabelSmall"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:textAlignment="viewStart"
-                        tools:text="10/100" />
+                        <com.google.android.material.progressindicator.LinearProgressIndicator
+                            android:id="@+id/loading_progress_indicator"
+                            android:layout_width="192dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:indeterminate="true"
+                            app:trackCornerRadius="8dp" />
 
-                </LinearLayout>
+                        <com.google.android.material.textview.MaterialTextView
+                            android:id="@+id/loading_progress_text"
+                            style="@style/TextAppearance.Material3.LabelSmall"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textAlignment="viewStart"
+                            tools:text="10/100" />
 
-            </androidx.constraintlayout.widget.ConstraintLayout>
+                    </LinearLayout>
 
-        </com.google.android.material.card.MaterialCardView>
+                </androidx.constraintlayout.widget.ConstraintLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/cancel_auto_resume_button"
+                style="@style/Widget.Material3.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="24dp"
+                android:paddingHorizontal="24dp"
+                android:paddingVertical="12dp"
+                android:visibility="gone"
+                android:text="@string/auto_resume_cancel_button"
+                android:textColor="@android:color/white"
+                android:elevation="14dp"
+                android:translationZ="16dp"
+                app:backgroundTint="#333333"
+                app:cornerRadius="28dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
         <TextView
             android:id="@+id/show_fps_text"

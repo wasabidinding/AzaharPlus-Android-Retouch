@@ -50,9 +50,11 @@ import androidx.navigation.fragment.navArgs
 import androidx.preference.PreferenceManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.slider.Slider
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.citra.citra_emu.CitraApplication
 import org.citra.citra_emu.EmulationNavigationDirections
 import org.citra.citra_emu.NativeLibrary
@@ -108,6 +110,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
     private val emulationViewModel: EmulationViewModel by activityViewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
+    private var cancelAutoResumeRequested = false
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -232,6 +235,28 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                     setHotCornerHudVisible(isPressed)
                 }
             })
+        }
+
+        binding.cancelAutoResumeButton.setOnClickListener {
+            if (cancelAutoResumeRequested) {
+                return@setOnClickListener
+            }
+            emulationActivity.markAutoResumeCancelled()
+            emulationActivity.requestClearLastPlayed()
+            cancelAutoResumeRequested = true
+            binding.cancelAutoResumeButton.isEnabled = false
+            binding.cancelAutoResumeButton.text = getString(R.string.auto_resume_cancel_button_exiting)
+            emulationViewModel.setLoadingOverlayVisible(true)
+
+            viewLifecycleOwner.lifecycleScope.launch {
+                withContext(Dispatchers.Default) {
+                    try {
+                        EmulationLifecycleUtil.closeGame()
+                    } catch (_: Exception) {
+                    }
+                }
+                awaitShutdownAndFinish()
+            }
         }
 
         // Show/hide the "Show FPS" overlay
@@ -442,6 +467,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                             } else {
                                 EmulationLifecycleUtil.closeGame()
                             }
+                            emulationActivity.requestClearLastPlayed()
                         }
                         .setNegativeButton(android.R.string.cancel) { _: DialogInterface?, _: Int ->
                             NativeLibrary.unPauseEmulation()
@@ -538,10 +564,29 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                     emulationViewModel.loadingOverlayVisible.collectLatest { visible ->
                         if (visible) {
                             ViewUtils.showView(binding.loadingOverlay)
-                            ViewUtils.showView(binding.loadingIndicator)
+                            ViewUtils.showView(binding.loadingContainer)
+                            if (!cancelAutoResumeRequested) {
+                                binding.cancelAutoResumeButton.text = getString(R.string.auto_resume_cancel_button)
+                                binding.cancelAutoResumeButton.isEnabled = true
+                            }
+                            binding.cancelAutoResumeButton.apply {
+                                bringToFront()
+                                requestLayout()
+                                alpha = 1f
+                                visibility = View.VISIBLE
+                                isClickable = true
+                            }
                         } else {
                             ViewUtils.hideView(binding.loadingOverlay)
-                            ViewUtils.hideView(binding.loadingIndicator)
+                            ViewUtils.hideView(binding.loadingContainer)
+                            binding.cancelAutoResumeButton.apply {
+                                alpha = 1f
+                                visibility = View.GONE
+                                isClickable = true
+                            }
+                            binding.cancelAutoResumeButton.text = getString(R.string.auto_resume_cancel_button)
+                            binding.cancelAutoResumeButton.isEnabled = true
+                            cancelAutoResumeRequested = false
                         }
                     }
                 }
@@ -549,6 +594,27 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         }
 
         setInsets()
+    }
+
+    private fun awaitShutdownAndFinish(attempt: Int = 0) {
+        if (!isAdded) {
+            return
+        }
+
+        val hasStopped = try {
+            !NativeLibrary.isRunning()
+        } catch (_: Exception) {
+            false
+        }
+
+        if (hasStopped || attempt >= 30) {
+            if (!requireActivity().isFinishing) {
+                requireActivity().finish()
+            }
+            return
+        }
+
+        Handler(Looper.getMainLooper()).postDelayed({ awaitShutdownAndFinish(attempt + 1) }, 100)
     }
 
     private fun setHotCornerHudVisible(visible: Boolean) {
