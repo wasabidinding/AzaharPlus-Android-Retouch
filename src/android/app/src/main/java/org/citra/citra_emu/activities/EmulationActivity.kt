@@ -29,6 +29,7 @@ import androidx.core.os.BundleCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.preference.PreferenceManager
 import org.citra.citra_emu.CitraApplication
@@ -55,7 +56,13 @@ import org.citra.citra_emu.utils.EmulationMenuSettings
 import org.citra.citra_emu.utils.Log
 import org.citra.citra_emu.utils.RefreshRateUtil
 import org.citra.citra_emu.utils.ThemeUtil
+import org.citra.citra_emu.utils.LastPlayedGameManager
+import org.citra.citra_emu.utils.TurboHelper
 import org.citra.citra_emu.viewmodel.EmulationViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class EmulationActivity : AppCompatActivity() {
     private val preferences: SharedPreferences
@@ -87,7 +94,19 @@ class EmulationActivity : AppCompatActivity() {
 
 
     private var isEmulationRunning: Boolean = false
+    @Volatile
+    private var autoResumeCancelled = false
     private var lastAutoSaveUptimeMs: Long = 0L
+
+    fun markAutoResumeCancelled() {
+        autoResumeCancelled = true
+    }
+
+    fun requestClearLastPlayed() {
+        LastPlayedGameManager.clear()
+    }
+
+    private fun shouldAbortAutoLoad(): Boolean = autoResumeCancelled || isFinishing || isDestroyed
 
     override fun onCreate(savedInstanceState: Bundle?) {
         requestWindowFeature(Window.FEATURE_NO_TITLE)
@@ -175,7 +194,7 @@ class EmulationActivity : AppCompatActivity() {
     }
 
     private fun tryAutoSave(source: String) {
-        if (!NativeLibrary.isRunning() || isChangingConfigurations) return
+        if (autoResumeCancelled || !NativeLibrary.isRunning() || isChangingConfigurations) return
         
         // 检查自动保存设置是否启用
         if (!BooleanSetting.AUTO_SAVE_ON_EXIT.boolean) {
@@ -263,47 +282,52 @@ class EmulationActivity : AppCompatActivity() {
     }
 
     fun onEmulationStarted() {
+        autoResumeCancelled = false
         emulationViewModel.setEmulationStarted(true) // 立即设置，不延迟游戏启动
         
         // 显示游戏加载完成提示
-        showLoadingToast(getString(R.string.game_loaded_successfully))
-        
         // 检查是否有存档需要加载
-        Handler(Looper.getMainLooper()).postDelayed({
-            // 首先检查自动加载开关状态
+        lifecycleScope.launch {
+            delay(1000)
+            if (shouldAbortAutoLoad()) {
+                return@launch
+            }
+
             val preferences = PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext)
             val currentGame = emulationFragment.getCurrentGame()
             val autoLoadStateKey = "auto_load_state_${currentGame.titleId}"
             val isAutoLoadEnabled = preferences.getBoolean(autoLoadStateKey, true)
-            
-            if (!isAutoLoadEnabled) {
-                // 自动加载已关闭，直接隐藏加载界面并显示准备就绪提示
+
+            if (!isAutoLoadEnabled || autoResumeCancelled) {
                 emulationViewModel.setLoadingOverlayVisible(false)
                 showLoadingToast(getString(R.string.game_ready))
-                return@postDelayed
+                return@launch
             }
-            
+
             val savestates = NativeLibrary.getSavestateInfo()
             if (savestates != null && savestates.isNotEmpty()) {
-                // 有存档，显示存档加载提示，保持overlay显示
                 showLoadingToast(getString(R.string.loading_save_state))
-                
-                // 等待一会儿让用户看到提示，然后加载存档
-                Handler(Looper.getMainLooper()).postDelayed({
-                    // 加载最新存档
+
+                delay(500)
+                if (shouldAbortAutoLoad()) {
+                    return@launch
+                }
+
+                withContext(Dispatchers.Default) {
                     autoLoadNewestSaveState()
-                    
-                    // 等待存档加载完成后再隐藏加载界面
-                    Handler(Looper.getMainLooper()).postDelayed({
-                        emulationViewModel.setLoadingOverlayVisible(false)
-                    }, 1000) // 给存档加载更多时间
-                }, 500) // 显示"正在加载存档"提示后等待500ms
+                }
+
+                delay(1000)
+                if (shouldAbortAutoLoad()) {
+                    return@launch
+                }
+
+                emulationViewModel.setLoadingOverlayVisible(false)
             } else {
-                // 没有存档，直接隐藏加载界面并显示准备就绪提示
                 emulationViewModel.setLoadingOverlayVisible(false)
                 showLoadingToast(getString(R.string.game_ready))
             }
-        }, 1000) // 等待1秒确保游戏稳定运行
+        }
     }
 
     private fun showLoadingToast(message: String) {
@@ -320,7 +344,7 @@ class EmulationActivity : AppCompatActivity() {
     private fun autoLoadNewestSaveState() {
         try {
             // Only load if the system is powered on and running
-            if (!NativeLibrary.isRunning()) {
+            if (shouldAbortAutoLoad() || !NativeLibrary.isRunning()) {
                 Log.d("EmulationActivity", "System not running, skipping auto-load")
                 return
             }
@@ -330,6 +354,9 @@ class EmulationActivity : AppCompatActivity() {
                 // Find the newest save state by comparing timestamps
                 val newestSaveState = savestates.maxByOrNull { it.time?.time ?: 0L }
                 newestSaveState?.let { saveState ->
+                    if (shouldAbortAutoLoad()) {
+                        return
+                    }
                     // Load the newest save state
                     NativeLibrary.loadState(saveState.slot)
                     Log.d("EmulationActivity", "Auto-loaded save state from slot ${saveState.slot}")

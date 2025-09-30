@@ -8,6 +8,8 @@
     <string name="export_controls_copied">按键布局已复制到剪贴板</string>
     <string name="auto_resume_last_game">启动时自动恢复上次游戏</string>
     <string name="auto_resume_last_game_description">打开应用时直接启动上次游玩的游戏。禁用后将始终进入主界面。</string>
+    <string name="auto_resume_cancel_button">取消加载</string>
+    <string name="auto_resume_cancel_button_exiting">正在退出...</string>
     <string name="auto_save_on_exit">退出时自动保存</string>
     <string name="auto_save_on_exit_description">返回桌面或切换应用时自动保存游戏状态。</string>
     <string name="game_saved">游戏已保存</string>
