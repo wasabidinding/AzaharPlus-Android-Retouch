@@ -760,9 +760,13 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             hidePauseIcon()
         } else {
             // 用户显式暂停
+            val didAutoSave = emulationActivity.tryAutoSave("manual_pause")
             emulationState.pause()
             emulationState.setKeepPausedRequested(true)
             showPauseIcon()
+            if (didAutoSave) {
+                Toast.makeText(requireContext(), getString(R.string.game_saved), Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
