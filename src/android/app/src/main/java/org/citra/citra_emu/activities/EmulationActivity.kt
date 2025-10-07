@@ -163,26 +163,28 @@ class EmulationActivity : AppCompatActivity() {
         super.onStop()
     }
 
-    private fun tryAutoSave(source: String) {
-        if (autoResumeCancelled || !NativeLibrary.isRunning() || isChangingConfigurations) return
+    fun tryAutoSave(source: String): Boolean {
+        if (autoResumeCancelled || !NativeLibrary.isRunning() || isChangingConfigurations) return false
         
         // 检查自动保存设置是否启用
         if (!BooleanSetting.AUTO_SAVE_ON_EXIT.boolean) {
             Log.d("EmulationActivity", "Auto-save disabled by user setting")
-            return
+            return false
         }
         
         val now = SystemClock.uptimeMillis()
         // 简单节流，避免短时间内重复触发保存
-        if (now - lastAutoSaveUptimeMs < 2000L) return
+        if (now - lastAutoSaveUptimeMs < 2000L) return false
         lastAutoSaveUptimeMs = now
 
         val slotForAutoSave = NativeLibrary.AUTO_SAVE_SLOT
         try {
             NativeLibrary.saveState(slotForAutoSave)
             Log.d("EmulationActivity", "Auto-saved state from $source (slot $slotForAutoSave)")
+            return true
         } catch (e: Exception) {
             Log.e("EmulationActivity", "Failed to auto-save from $source", e)
+            return false
         }
     }
 
