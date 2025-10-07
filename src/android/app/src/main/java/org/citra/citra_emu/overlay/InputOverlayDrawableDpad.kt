@@ -280,6 +280,6 @@ class InputOverlayDrawableDpad(
         get() = defaultStateBitmap.bounds
 
     companion object {
-        private const val VIRT_AXIS_DEADZONE = 0.5f
+        private const val VIRT_AXIS_DEADZONE = 0.2f
     }
 }
