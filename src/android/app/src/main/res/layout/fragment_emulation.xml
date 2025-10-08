@@ -60,6 +60,17 @@
             android:focusable="false"
             android:visibility="visible" />
 
+        <!-- Pause overlay (semi-transparent black background) -->
+        <View
+            android:id="@+id/pause_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#3D000000"
+            android:visibility="gone"
+            android:clickable="false"
+            android:focusable="false"
+            android:elevation="7dp" />
+
         <!-- Pause icon overlay -->
         <ImageView
             android:id="@+id/pause_icon_overlay"
