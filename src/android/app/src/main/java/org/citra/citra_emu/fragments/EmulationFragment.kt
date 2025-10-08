@@ -1766,17 +1766,16 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         if (_binding == null) return
         try {
             positionPauseIconOnTopScreen()
+            binding.pauseOverlay.visibility = View.VISIBLE
             binding.pauseIconOverlay.visibility = View.VISIBLE
-            // 降低底层画面亮度，突出图标
-            binding.surfaceEmulation.alpha = 0.75f
         } catch (_: Exception) { }
     }
 
     private fun hidePauseIcon() {
         if (_binding == null) return
         try {
+            binding.pauseOverlay.visibility = View.GONE
             binding.pauseIconOverlay.visibility = View.GONE
-            binding.surfaceEmulation.alpha = 1f
         } catch (_: Exception) { }
     }
 
