@@ -96,7 +96,10 @@ class EmulationActivity : AppCompatActivity() {
     private var isEmulationRunning: Boolean = false
     @Volatile
     private var autoResumeCancelled = false
-    private var lastAutoSaveUptimeMs: Long = 0L
+    private var lastAutoSaveSuccessMs: Long = 0L
+    private var lastAutoSaveFailureMs: Long = 0L
+    private val autoSaveThrottleMs = 2000L
+    private val autoSaveFailureBackoffMs = 1000L
 
     fun markAutoResumeCancelled() {
         autoResumeCancelled = true
@@ -193,6 +196,7 @@ class EmulationActivity : AppCompatActivity() {
         super.onStop()
     }
 
+    @Synchronized
     fun tryAutoSave(source: String): Boolean {
         if (autoResumeCancelled || !NativeLibrary.isRunning() || isChangingConfigurations) return false
         
@@ -203,16 +207,23 @@ class EmulationActivity : AppCompatActivity() {
         }
         
         val now = SystemClock.uptimeMillis()
-        // 简单节流，避免短时间内重复触发保存
-        if (now - lastAutoSaveUptimeMs < 2000L) return false
-        lastAutoSaveUptimeMs = now
+        // 成功节流：避免短时间内重复写入同一槽位
+        if (now - lastAutoSaveSuccessMs < autoSaveThrottleMs) {
+            return false
+        }
+        // 失败退避：若最近保存失败，稍等片刻再试，防止持续快速冲刷
+        if (now - lastAutoSaveFailureMs < autoSaveFailureBackoffMs) {
+            return false
+        }
 
         val slotForAutoSave = NativeLibrary.AUTO_SAVE_SLOT
         try {
             NativeLibrary.saveState(slotForAutoSave)
+            lastAutoSaveSuccessMs = SystemClock.uptimeMillis()
             Log.d("EmulationActivity", "Auto-saved state from $source (slot $slotForAutoSave)")
             return true
         } catch (e: Exception) {
+            lastAutoSaveFailureMs = SystemClock.uptimeMillis()
             Log.e("EmulationActivity", "Failed to auto-save from $source", e)
             return false
         }
