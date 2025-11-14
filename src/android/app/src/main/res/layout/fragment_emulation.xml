@@ -74,8 +74,8 @@
         <!-- Pause icon overlay -->
         <ImageView
             android:id="@+id/pause_icon_overlay"
-            android:layout_width="96dp"
-            android:layout_height="96dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:layout_gravity="center"
             android:src="@drawable/ic_pause"
             android:tint="@android:color/white"
@@ -265,6 +265,15 @@
             android:textStyle="bold"
             android:visibility="gone"
             tools:text="85%" />
+
+        <ImageView
+            android:id="@+id/turbo_indicator"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="start|top"
+            android:contentDescription="@string/turbo_indicator_description"
+            android:src="@drawable/ic_turbo_indicator"
+            android:visibility="gone" />
 
     </androidx.coordinatorlayout.widget.CoordinatorLayout>
 
