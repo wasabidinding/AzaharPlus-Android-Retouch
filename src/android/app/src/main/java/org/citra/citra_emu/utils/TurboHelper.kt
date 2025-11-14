@@ -5,21 +5,40 @@
 package org.citra.citra_emu.utils
 
 import android.widget.Toast
+import java.util.concurrent.CopyOnWriteArraySet
 import org.citra.citra_emu.CitraApplication
 import org.citra.citra_emu.NativeLibrary
 import org.citra.citra_emu.R
 import org.citra.citra_emu.features.settings.model.IntSetting
 
 object TurboHelper {
+    fun interface TurboStateListener {
+        fun onTurboStateChanged(isEnabled: Boolean)
+    }
+
     private var turboSpeedEnabled = false
+    private val turboStateListeners = CopyOnWriteArraySet<TurboStateListener>()
 
     fun isTurboSpeedEnabled(): Boolean {
         return turboSpeedEnabled
     }
 
     fun setTurboEnabled(state: Boolean) {
+        val changed = turboSpeedEnabled != state
         turboSpeedEnabled = state
         reloadTurbo()
+        if (changed) {
+            notifyTurboStateChanged()
+        }
+    }
+
+    fun registerListener(listener: TurboStateListener) {
+        turboStateListeners.add(listener)
+        listener.onTurboStateChanged(turboSpeedEnabled)
+    }
+
+    fun unregisterListener(listener: TurboStateListener) {
+        turboStateListeners.remove(listener)
     }
 
     fun reloadTurbo() {
@@ -35,5 +54,9 @@ object TurboHelper {
         }
 
         Toast.makeText(context, toastMessage, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun notifyTurboStateChanged() {
+        turboStateListeners.forEach { it.onTurboStateChanged(turboSpeedEnabled) }
     }
 }

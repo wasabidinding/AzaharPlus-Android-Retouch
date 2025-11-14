@@ -4,10 +4,12 @@
 
 package org.citra.citra_emu.fragments
 
+import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.ClipboardManager
 import android.content.ClipData
+import kotlin.math.min
 import kotlin.math.roundToInt
 import android.content.DialogInterface
 import android.content.res.Configuration
@@ -23,11 +25,13 @@ import android.text.Html
 import android.text.TextWatcher
 import android.view.Choreographer
 import android.view.LayoutInflater
+import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.View
 import android.view.ViewGroup
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.widget.ImageView
 import android.widget.PopupMenu
 import android.widget.TextView
@@ -111,6 +115,14 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     private val emulationViewModel: EmulationViewModel by activityViewModels()
     private val settingsViewModel: SettingsViewModel by viewModels()
     private var cancelAutoResumeRequested = false
+    private var turboIndicatorAnimator: ValueAnimator? = null
+    private var pauseIconAnimator: ValueAnimator? = null
+    private var turboStateListener: TurboHelper.TurboStateListener? = null
+    private val turboIndicatorLayoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
+        if (_binding != null && TurboHelper.isTurboSpeedEnabled()) {
+            updateTurboIndicatorPosition()
+        }
+    }
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
@@ -236,6 +248,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 }
             })
         }
+        setupTurboIndicator()
 
         binding.cancelAutoResumeButton.setOnClickListener {
             if (cancelAutoResumeRequested) {
@@ -651,6 +664,98 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             binding.hudTimeText.setShadowLayer(0f, 0f, 0f, 0)
             binding.hudBatteryText.setShadowLayer(0f, 0f, 0f, 0)
         }
+    }
+
+    private fun setupTurboIndicator() {
+        binding.surfaceEmulation.removeOnLayoutChangeListener(turboIndicatorLayoutListener)
+        binding.surfaceEmulation.addOnLayoutChangeListener(turboIndicatorLayoutListener)
+        turboStateListener?.let { TurboHelper.unregisterListener(it) }
+        val listener = TurboHelper.TurboStateListener { enabled ->
+            binding.root.post {
+                handleTurboIndicatorState(enabled)
+            }
+        }
+        turboStateListener = listener
+        TurboHelper.registerListener(listener)
+    }
+
+    private fun handleTurboIndicatorState(enabled: Boolean) {
+        if (_binding == null) {
+            return
+        }
+        val indicator = binding.turboIndicator
+        if (enabled) {
+            indicator.visibility = View.VISIBLE
+            indicator.alpha = 1f
+            updateTurboIndicatorPosition()
+            startTurboIndicatorAnimation()
+        } else {
+            stopTurboIndicatorAnimation()
+            indicator.visibility = View.GONE
+        }
+    }
+
+    private fun startTurboIndicatorAnimation() {
+        if (_binding == null) {
+            return
+        }
+        val indicator = binding.turboIndicator
+        if (turboIndicatorAnimator == null) {
+            turboIndicatorAnimator = ValueAnimator.ofFloat(0.4f, 1f).apply {
+                duration = 1200L
+                repeatMode = ValueAnimator.REVERSE
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+                addUpdateListener { animation ->
+                    if (_binding != null) {
+                        indicator.alpha = animation.animatedValue as Float
+                    }
+                }
+            }
+        }
+        if (turboIndicatorAnimator?.isRunning != true) {
+            turboIndicatorAnimator?.start()
+        }
+    }
+
+    private fun stopTurboIndicatorAnimation() {
+        turboIndicatorAnimator?.cancel()
+        turboIndicatorAnimator = null
+        if (_binding != null) {
+            binding.turboIndicator.alpha = 1f
+        }
+    }
+
+    private fun updateTurboIndicatorPosition() {
+        if (_binding == null) {
+            return
+        }
+        val indicator = binding.turboIndicator
+        val inset = dpToPx(6f)
+        indicator.post {
+            val layout = try {
+                NativeLibrary.getScreenLayout()
+            } catch (_: Exception) {
+                null
+            }
+            if (layout == null || layout.size < 8) {
+                indicator.x = inset
+                indicator.y = inset
+            } else {
+                val topLeftX = min(layout[0], layout[2]).toFloat()
+                val topLeftY = min(layout[1], layout[3]).toFloat()
+                indicator.x = topLeftX + inset
+                indicator.y = topLeftY + inset
+            }
+        }
+    }
+
+    private fun dpToPx(dp: Float): Float {
+        return TypedValue.applyDimension(
+            TypedValue.COMPLEX_UNIT_DIP,
+            dp,
+            resources.displayMetrics
+        )
     }
 
     fun isDrawerOpen(): Boolean {
@@ -1357,6 +1462,15 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     }
 
     override fun onDestroyView() {
+        if (_binding != null) {
+            binding.surfaceEmulation.removeOnLayoutChangeListener(turboIndicatorLayoutListener)
+        }
+        turboStateListener?.let {
+            TurboHelper.unregisterListener(it)
+            turboStateListener = null
+        }
+        stopTurboIndicatorAnimation()
+        stopPauseIconAnimation()
         OverlayPreferencesManager.resetToGeneral()
         super.onDestroyView()
     }
@@ -1768,12 +1882,14 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             positionPauseIconOnTopScreen()
             binding.pauseOverlay.visibility = View.VISIBLE
             binding.pauseIconOverlay.visibility = View.VISIBLE
+            startPauseIconAnimation()
         } catch (_: Exception) { }
     }
 
     private fun hidePauseIcon() {
         if (_binding == null) return
         try {
+            stopPauseIconAnimation()
             binding.pauseOverlay.visibility = View.GONE
             binding.pauseIconOverlay.visibility = View.GONE
         } catch (_: Exception) { }
@@ -1810,6 +1926,37 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             val halfH = binding.pauseIconOverlay.height / 2f
             binding.pauseIconOverlay.x = centerX - halfW
             binding.pauseIconOverlay.y = centerY - halfH
+        }
+    }
+
+    private fun startPauseIconAnimation() {
+        if (_binding == null) {
+            return
+        }
+        val icon = binding.pauseIconOverlay
+        if (pauseIconAnimator == null) {
+            pauseIconAnimator = ValueAnimator.ofFloat(0.55f, 1f).apply {
+                duration = 1200L
+                repeatMode = ValueAnimator.REVERSE
+                repeatCount = ValueAnimator.INFINITE
+                interpolator = AccelerateDecelerateInterpolator()
+                addUpdateListener { animation ->
+                    if (_binding != null) {
+                        icon.alpha = animation.animatedValue as Float
+                    }
+                }
+            }
+        }
+        if (pauseIconAnimator?.isRunning != true) {
+            pauseIconAnimator?.start()
+        }
+    }
+
+    private fun stopPauseIconAnimation() {
+        pauseIconAnimator?.cancel()
+        pauseIconAnimator = null
+        if (_binding != null) {
+            binding.pauseIconOverlay.alpha = 0.95f
         }
     }
 

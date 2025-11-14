@@ -128,6 +128,7 @@
     <string name="turbo_limit_hotkey">加速</string>
     <string name="turbo_enabled_toast">加速已启用</string>
     <string name="turbo_disabled_toast">加速已禁用</string>
+    <string name="turbo_indicator_description">加速状态指示</string>
 
     <!-- System files strings -->
     <string name="setup_system_files">系统文件</string>
