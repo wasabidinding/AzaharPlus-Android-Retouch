@@ -508,7 +508,7 @@ if (ENABLE_VULKAN)
 endif()
 
 set(XXHASH_BUILD_XXHSUM OFF)
-add_subdirectory(xxHash/cmake_unofficial EXCLUDE_FROM_ALL)
+add_subdirectory(xxHash/build/cmake EXCLUDE_FROM_ALL)
 target_compile_definitions(xxhash PRIVATE XXH_FORCE_MEMORY_ACCESS=2)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
     target_compile_definitions(xxhash PRIVATE XXH_VECTOR=XXH_SSE2)
