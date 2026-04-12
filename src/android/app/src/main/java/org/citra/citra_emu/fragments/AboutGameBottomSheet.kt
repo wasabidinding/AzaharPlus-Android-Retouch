@@ -90,9 +90,60 @@ class AboutGameBottomSheet : BottomSheetDialogFragment() {
         view.findViewById<TextView>(R.id.about_game_title).text = game.title
         view.findViewById<TextView>(R.id.about_game_company).text = game.company
         view.findViewById<TextView>(R.id.about_game_region).text = game.regions
-        view.findViewById<TextView>(R.id.about_game_id).text = "ID: " + String.format("%016X", game.titleId)
-        view.findViewById<TextView>(R.id.about_game_filename).text = "File: " + game.filename
+        view.findViewById<TextView>(R.id.about_game_id).text = getString(R.string.game_context_id) + " " + String.format("%016X", game.titleId)
+        view.findViewById<TextView>(R.id.about_game_filename).text = getString(R.string.game_context_file) + " " + game.filename
+        view.findViewById<TextView>(R.id.about_game_filetype).text = getString(R.string.game_context_type) + " " + game.fileType
+
+        val playTimeSeconds = NativeLibrary.playTimeManagerGetPlayTime(game.titleId)
+        view.findViewById<TextView>(R.id.about_game_playtime).text = buildString {
+            val hours = playTimeSeconds / 3600
+            val minutes = (playTimeSeconds % 3600) / 60
+            val seconds = playTimeSeconds % 60
+            val readablePlayTime = when {
+                hours > 0 -> "${hours}h ${minutes}m ${seconds}s"
+                minutes > 0 -> "${minutes}m ${seconds}s"
+                else -> "${seconds}s"
+            }
+            append("Playtime: ")
+            append(readablePlayTime)
+        }
+
         GameIconUtils.loadGameIcon(requireActivity(), game, view.findViewById(R.id.game_icon))
+
+        // Insert Cartridge button
+        val insertButton = view.findViewById<MaterialButton>(R.id.insert_cartridge_button)
+        val insertable = game.isInsertable
+        val prefs = PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext)
+        val inserted = insertable && (prefs.getString("insertedCartridge", "") == game.path)
+        insertButton.text = if (inserted) getString(R.string.game_context_eject) else getString(R.string.game_context_insert)
+        insertButton.visibility = if (insertable) View.VISIBLE else View.GONE
+        insertButton.setOnClickListener {
+            if (inserted) {
+                prefs.edit().putString("insertedCartridge", "").apply()
+            } else {
+                prefs.edit().putString("insertedCartridge", game.path).apply()
+            }
+            dismissAllowingStateLoss()
+        }
+
+        // Compress/Decompress button
+        val compressButton = view.findViewById<MaterialButton>(R.id.compress_decompress)
+        compressButton.text = getString(if (!game.isCompressed) R.string.compress else R.string.decompress)
+        if (game.isInstalled) {
+            compressButton.setOnClickListener {
+                Toast.makeText(requireContext(), getString(R.string.compress_decompress_installed_app), Toast.LENGTH_LONG).show()
+            }
+            compressButton.alpha = 0.38f
+        } else {
+            compressButton.setOnClickListener {
+                val shouldCompress = !game.isCompressed
+                val recommendedExt = NativeLibrary.getRecommendedExtension(game.path, shouldCompress)
+                val baseName = game.filename.substringBeforeLast('.')
+                // Trigger compress/decompress via the hosting activity/fragment
+                Toast.makeText(requireContext(), getString(if (shouldCompress) R.string.compress else R.string.decompress) + ": $baseName.$recommendedExt", Toast.LENGTH_SHORT).show()
+                dismissAllowingStateLoss()
+            }
+        }
 
         val preferences = androidx.preference.PreferenceManager.getDefaultSharedPreferences(CitraApplication.appContext)
         val autoLoadStateKey = "auto_load_state_${game.titleId}"

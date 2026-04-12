@@ -58,7 +58,7 @@ object LastPlayedGameManager {
             }
         } else {
             val installed = try {
-                NativeLibrary.getInstalledGamePaths().any { it == saved.path }
+                NativeLibrary.getInstalledGamePaths().any { it.path == saved.path }
             } catch (_: Exception) {
                 false
             }

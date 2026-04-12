@@ -51,12 +51,6 @@ class GamesFragment : Fragment() {
     private val homeViewModel: HomeViewModel by activityViewModels()
     private lateinit var gameAdapter: GameAdapter
 
-    private val openImageLauncher = registerForActivityResult(
-        ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        gameAdapter.handleShortcutImageResult(uri)
-    }
-
     private var shouldCompress: Boolean = true
     private var pendingCompressInvocation: String? = null
 
@@ -140,7 +134,7 @@ class GamesFragment : Fragment() {
         gameAdapter = GameAdapter(
             requireActivity() as AppCompatActivity,
             inflater,
-            openImageLauncher,
+            null,
             onRequestCompressOrDecompress = { inputPath, suggestedName, shouldCompress ->
                 pendingCompressInvocation = inputPath
                 onCompressDecompressLauncher.launch(suggestedName)
