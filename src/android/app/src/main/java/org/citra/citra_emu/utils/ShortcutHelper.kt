@@ -94,7 +94,11 @@ object ShortcutHelper {
             Icon.createWithResource(context, R.mipmap.ic_launcher)
         }
 
-        val intent = game.launchIntent.apply { putExtra("launched_from_shortcut", true) }
+        val intent = try {
+            game.launchIntent.apply { putExtra("launched_from_shortcut", true) }
+        } catch (_: Exception) {
+            return null
+        }
 
         return ShortcutInfo.Builder(context, id)
             .setShortLabel(game.title.take(24))

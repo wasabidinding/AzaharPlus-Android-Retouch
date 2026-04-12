@@ -145,13 +145,18 @@ object NativeLibrary {
 
         return games.mapNotNull { entry ->
             entry?.let {
-                val sep = it.lastIndexOf('|')
-                if (sep == -1) return@mapNotNull null
+                try {
+                    val sep = it.lastIndexOf('|')
+                    if (sep == -1) return@mapNotNull null
 
-                val path = it.substring(0, sep)
-                val mediaType = Game.MediaType.fromInt(it.substring(sep + 1).toInt())
+                    val path = it.substring(0, sep)
+                    val mediaType = Game.MediaType.fromInt(it.substring(sep + 1).toInt())
+                        ?: return@mapNotNull null
 
-                InstalledGame(path, mediaType!!)
+                    InstalledGame(path, mediaType)
+                } catch (_: Exception) {
+                    null
+                }
             }
         }.toTypedArray()
     }

@@ -196,7 +196,9 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
                 repeatOnLifecycle(Lifecycle.State.STARTED) {
                     gamesViewModel.games.collect { games ->
                         // 动态快捷方式：根据游戏库变化更新 Top-N
-                        ShortcutHelper.updateDynamicShortcuts(this@MainActivity.applicationContext, games)
+                        try {
+                            ShortcutHelper.updateDynamicShortcuts(this@MainActivity.applicationContext, games)
+                        } catch (_: Exception) { }
                     }
                 }
             }
@@ -390,7 +392,12 @@ class MainActivity : AppCompatActivity(), ThemeProvider {
         }
 
         val lastGame = LastPlayedGameManager.resolveLaunchableGame() ?: return false
-        startActivity(lastGame.launchIntent)
+        try {
+            startActivity(lastGame.launchIntent)
+        } catch (_: Exception) {
+            LastPlayedGameManager.clear()
+            return false
+        }
         return true
     }
 
