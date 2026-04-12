@@ -204,104 +204,6 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             return onTouchWhileEditing(event)
         }
 
-            if (button.id == NativeLibrary.ButtonType.BUTTON_SWAP && button.status == NativeLibrary.ButtonState.PRESSED) {
-                swapScreen()
-            }
-
-            if (button.id == NativeLibrary.ButtonType.BUTTON_TURBO && button.status == NativeLibrary.ButtonState.PRESSED) {
-                TurboHelper.setTurboEnabled((!TurboHelper.isTurboSpeedEnabled()))
-            }
-
-            if (button.id == NativeLibrary.ButtonType.BUTTON_QUICK_SAVE && button.status == NativeLibrary.ButtonState.PRESSED) {
-                // 实现快速保存功能
-                NativeLibrary.saveState(NativeLibrary.QUICKSAVE_SLOT)
-                Toast.makeText(context,
-                    context.getString(R.string.saving),
-                    Toast.LENGTH_SHORT).show()
-            }
-
-            if (button.id == NativeLibrary.ButtonType.BUTTON_QUICK_LOAD && button.status == NativeLibrary.ButtonState.PRESSED) {
-                // 实现快速加载功能
-                val wasLoaded = NativeLibrary.loadStateIfAvailable(NativeLibrary.QUICKSAVE_SLOT)
-                val stringRes = if(wasLoaded) {
-                    R.string.loading
-                } else {
-                    R.string.quickload_not_found
-                }
-                Toast.makeText(context,
-                    context.getString(stringRes),
-                    Toast.LENGTH_SHORT).show()
-            }
-
-            if (button.id == NativeLibrary.ButtonType.BUTTON_MENU && button.status == NativeLibrary.ButtonState.PRESSED) {
-                // 实现菜单功能 - 打开侧边抽屉菜单
-                val emulationActivity = NativeLibrary.sEmulationActivity.get()
-                emulationActivity?.let { activity ->
-                    activity.runOnUiThread {
-                        // 通过EmulationFragment来访问drawer layout
-                        val fragment = activity.supportFragmentManager.fragments.firstOrNull {
-                            it is org.citra.citra_emu.fragments.EmulationFragment
-                        } as? org.citra.citra_emu.fragments.EmulationFragment
-
-                        fragment?.openDrawer() ?: run {
-                            // 如果找不到fragment，使用back press方法
-                            activity.onBackPressed()
-                        }
-                    }
-                }
-            }
-
-            NativeLibrary.onGamePadEvent(NativeLibrary.TouchScreenDevice, button.id, button.status)
-            shouldUpdateView = true
-        }
-        for (dpad in overlayDpads) {
-            if (!dpad.updateStatus(event, EmulationMenuSettings.dpadSlide, this)) {
-                continue
-            }
-            NativeLibrary.onGamePadEvent(NativeLibrary.TouchScreenDevice, dpad.upId, dpad.upStatus)
-            NativeLibrary.onGamePadEvent(
-                NativeLibrary.TouchScreenDevice,
-                dpad.downId,
-                dpad.downStatus
-            )
-            NativeLibrary.onGamePadEvent(
-                NativeLibrary.TouchScreenDevice,
-                dpad.leftId,
-                dpad.leftStatus
-            )
-            NativeLibrary.onGamePadEvent(
-                NativeLibrary.TouchScreenDevice,
-                dpad.rightId,
-                dpad.rightStatus
-            )
-            shouldUpdateView = true
-        }
-        for (joystick in overlayJoysticks) {
-            if (!joystick.updateStatus(event, this)) {
-                continue
-            }
-            val axisID = joystick.joystickId
-            NativeLibrary.onGamePadMoveEvent(
-                NativeLibrary.TouchScreenDevice,
-                axisID,
-                joystick.xAxis,
-                joystick.yAxis
-            )
-            shouldUpdateView = true
-        }
-
-        if (shouldUpdateView) {
-            invalidate()
-        }
-
-        if (!preferences.getBoolean("isTouchEnabled", true)) {
-            return true
-        }
-
-        val pointerIndex = event.actionIndex
-        val xPosition = event.getX(pointerIndex).toInt()
-        val yPosition = event.getY(pointerIndex).toInt()
-        val pointerId = event.getPointerId(pointerIndex)
         val motionEvent = event.action and MotionEvent.ACTION_MASK
         val isActionDown =
             motionEvent == MotionEvent.ACTION_DOWN || motionEvent == MotionEvent.ACTION_POINTER_DOWN
@@ -374,11 +276,29 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
                     }
                     anyOverlayStateChanged = true
 
-                    if (button.id == NativeLibrary.ButtonType.BUTTON_SWAP && button.status == NativeLibrary.ButtonState.PRESSED) {
-                        swapScreen()
-                    }
-                    else if (button.id == NativeLibrary.ButtonType.BUTTON_TURBO && button.status == NativeLibrary.ButtonState.PRESSED) {
-                        TurboHelper.toggleTurbo(true)
+                    if (button.status == NativeLibrary.ButtonState.PRESSED) {
+                        when (button.id) {
+                            NativeLibrary.ButtonType.BUTTON_SWAP -> swapScreen()
+                            NativeLibrary.ButtonType.BUTTON_TURBO -> TurboHelper.toggleTurbo(true)
+                            NativeLibrary.ButtonType.BUTTON_QUICK_SAVE -> {
+                                NativeLibrary.saveState(NativeLibrary.QUICKSAVE_SLOT)
+                                Toast.makeText(context, context.getString(R.string.saving), Toast.LENGTH_SHORT).show()
+                            }
+                            NativeLibrary.ButtonType.BUTTON_QUICK_LOAD -> {
+                                val wasLoaded = NativeLibrary.loadStateIfAvailable(NativeLibrary.QUICKSAVE_SLOT)
+                                val stringRes = if (wasLoaded) R.string.loading else R.string.quickload_not_found
+                                Toast.makeText(context, context.getString(stringRes), Toast.LENGTH_SHORT).show()
+                            }
+                            NativeLibrary.ButtonType.BUTTON_MENU -> {
+                                val emulationActivity = NativeLibrary.sEmulationActivity.get()
+                                emulationActivity?.runOnUiThread {
+                                    val fragment = emulationActivity.supportFragmentManager.fragments.firstOrNull {
+                                        it is org.citra.citra_emu.fragments.EmulationFragment
+                                    } as? org.citra.citra_emu.fragments.EmulationFragment
+                                    fragment?.openDrawer() ?: emulationActivity.onBackPressed()
+                                }
+                            }
+                        }
                     }
 
                     NativeLibrary.onGamePadEvent(

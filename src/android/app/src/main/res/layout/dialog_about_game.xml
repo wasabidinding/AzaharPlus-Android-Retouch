@@ -179,7 +179,6 @@
             android:orientation="vertical"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toBottomOf="@id/horizontal_layout"
             app:layout_constraintBottom_toBottomOf="parent"
             android:paddingBottom="8dp">
@@ -319,7 +318,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHorizontal_bias="0.0"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/game_button_tray">
+            app:layout_constraintTop_toBottomOf="@+id/game_toggles_container">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/insert_cartridge_button"

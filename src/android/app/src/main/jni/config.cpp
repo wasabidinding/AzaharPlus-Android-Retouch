@@ -191,8 +191,6 @@ void Config::ReadValues() {
         layoutInt = static_cast<int>(Settings::LayoutOption::LargeScreen);
     }
     Settings::values.layout_option = static_cast<Settings::LayoutOption>(layoutInt);
-    Settings::values.screen_gap =
-        static_cast<int>(android_config->GetReal("Layout", "screen_gap", 0));
     Settings::values.large_screen_proportion =
         static_cast<float>(android_config->GetReal("Layout", "large_screen_proportion", 2.25));
     Settings::values.small_screen_position = static_cast<Settings::SmallScreenPosition>(
@@ -316,6 +314,8 @@ void Config::ReadValues() {
     ReadSetting("Debugging", Settings::values.instant_debug_log);
     ReadSetting("Debugging", Settings::values.enable_rpc_server);
     ReadSetting("Debugging", Settings::values.toggle_unique_data_console_type);
+    ReadSetting("Debugging", Settings::values.delay_start_for_lle_modules);
+    ReadSetting("Debugging", Settings::values.deterministic_async_operations);
 
     for (const auto& service_module : Service::service_module_map) {
         bool use_lle =
