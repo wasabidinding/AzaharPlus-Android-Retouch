@@ -14,7 +14,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.util.Log
 import android.view.InputDevice
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -184,25 +183,13 @@ class EmulationActivity : AppCompatActivity() {
         enableFullscreenImmersive()
     }
 
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        // 当用户通过 Home/多任务等方式离开应用时，优先在离开前保存状态
-        tryAutoSave("onUserLeaveHint")
-    }
-
-    override fun onStop() {
-        // 兜底：某些设备/场景可能不触发 onUserLeaveHint，这里在真正不可见时再尝试一次
-        tryAutoSave("onStop")
-        super.onStop()
-    }
-
     @Synchronized
     fun tryAutoSave(source: String): Boolean {
         if (autoResumeCancelled || !NativeLibrary.isRunning() || isChangingConfigurations) return false
         
         // 检查自动保存设置是否启用
         if (!BooleanSetting.AUTO_SAVE_ON_EXIT.boolean) {
-            Log.d("EmulationActivity", "Auto-save disabled by user setting")
+            Log.debug("[EmulationActivity] Auto-save disabled by user setting")
             return false
         }
         
@@ -220,11 +207,11 @@ class EmulationActivity : AppCompatActivity() {
         try {
             NativeLibrary.saveState(slotForAutoSave)
             lastAutoSaveSuccessMs = SystemClock.uptimeMillis()
-            Log.d("EmulationActivity", "Auto-saved state from $source (slot $slotForAutoSave)")
+            Log.debug("[EmulationActivity] Auto-saved state from $source (slot $slotForAutoSave)")
             return true
         } catch (e: Exception) {
             lastAutoSaveFailureMs = SystemClock.uptimeMillis()
-            Log.e("EmulationActivity", "Failed to auto-save from $source", e)
+            Log.error("[EmulationActivity] Failed to auto-save from $source: ${e.message}")
             return false
         }
     }
@@ -261,33 +248,27 @@ class EmulationActivity : AppCompatActivity() {
         permissions: Array<String>,
         grantResults: IntArray
     ) {
+        val granted = grantResults.isNotEmpty() &&
+            grantResults[0] == PackageManager.PERMISSION_GRANTED
         when (requestCode) {
             NativeLibrary.REQUEST_CODE_NATIVE_CAMERA -> {
-                if (grantResults[0] != PackageManager.PERMISSION_GRANTED &&
-                    shouldShowRequestPermissionRationale(permission.CAMERA)
-                ) {
+                if (!granted && shouldShowRequestPermissionRationale(permission.CAMERA)) {
                     MessageDialogFragment.newInstance(
                         R.string.camera,
                         R.string.camera_permission_needed
                     ).show(supportFragmentManager, MessageDialogFragment.TAG)
                 }
-                NativeLibrary.cameraPermissionResult(
-                    grantResults[0] == PackageManager.PERMISSION_GRANTED
-                )
+                NativeLibrary.cameraPermissionResult(granted)
             }
 
             NativeLibrary.REQUEST_CODE_NATIVE_MIC -> {
-                if (grantResults[0] != PackageManager.PERMISSION_GRANTED &&
-                    shouldShowRequestPermissionRationale(permission.RECORD_AUDIO)
-                ) {
+                if (!granted && shouldShowRequestPermissionRationale(permission.RECORD_AUDIO)) {
                     MessageDialogFragment.newInstance(
                         R.string.microphone,
                         R.string.microphone_permission_needed
                     ).show(supportFragmentManager, MessageDialogFragment.TAG)
                 }
-                NativeLibrary.micPermissionResult(
-                    grantResults[0] == PackageManager.PERMISSION_GRANTED
-                )
+                NativeLibrary.micPermissionResult(granted)
             }
 
             else -> super.onRequestPermissionsResult(requestCode, permissions, grantResults)
@@ -358,27 +339,27 @@ class EmulationActivity : AppCompatActivity() {
         try {
             // Only load if the system is powered on and running
             if (shouldAbortAutoLoad() || !NativeLibrary.isRunning()) {
-                Log.d("EmulationActivity", "System not running, skipping auto-load")
+                Log.debug("[EmulationActivity] System not running, skipping auto-load")
                 return
             }
             
             val savestates = NativeLibrary.getSavestateInfo()
             if (savestates != null && savestates.isNotEmpty()) {
                 // Find the newest save state by comparing timestamps
-                val newestSaveState = savestates.maxByOrNull { it.time?.time ?: 0L }
+                val newestSaveState = savestates.maxByOrNull { state: NativeLibrary.SaveStateInfo -> state.time?.time ?: 0L }
                 newestSaveState?.let { saveState ->
                     if (shouldAbortAutoLoad()) {
                         return
                     }
                     // Load the newest save state
                     NativeLibrary.loadState(saveState.slot)
-                    Log.d("EmulationActivity", "Auto-loaded save state from slot ${saveState.slot}")
+                    Log.debug("[EmulationActivity] Auto-loaded save state from slot ${saveState.slot}")
                 }
             } else {
-                Log.d("EmulationActivity", "No save states available for auto-load")
+                Log.debug("[EmulationActivity] No save states available for auto-load")
             }
         } catch (e: Exception) {
-            Log.e("EmulationActivity", "Failed to auto-load save state", e)
+            Log.error("[EmulationActivity] Failed to auto-load save state: ${e.message}")
         }
     }
 

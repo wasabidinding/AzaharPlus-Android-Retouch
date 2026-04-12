@@ -21,7 +21,6 @@ import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Bundle
-import android.os.BatteryManager
 import android.os.Handler
 import android.os.Looper
 import android.os.ParcelFileDescriptor
@@ -49,6 +48,7 @@ import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.doOnLayout
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.drawerlayout.widget.DrawerLayout.DrawerListener
 import androidx.fragment.app.Fragment
@@ -112,6 +112,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
     private lateinit var emulationState: EmulationState
     private var perfStatsUpdater: Runnable? = null
+    private var layoutCheckRunnable: Runnable? = null
+    private var borderViewRef: org.citra.citra_emu.overlay.BorderOverlayView? = null
 
     private lateinit var emulationActivity: EmulationActivity
 
@@ -192,7 +194,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 }
         }
 
-        val insertedCartridge = preferences.getString("insertedCartridge", "")
+        val insertedCartridge = defaultPreferences.getString("insertedCartridge", "")
         NativeLibrary.setInsertedCartridge(insertedCartridge ?: "")
 
         try {
@@ -268,7 +270,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 override fun onHotCornerAction(action: HotCornerSettings.HotCornerAction) {
                     when (action) {
                         HotCornerSettings.HotCornerAction.PAUSE_RESUME -> togglePauseAndSyncMenu()
-                        HotCornerSettings.HotCornerAction.TOGGLE_TURBO -> TurboHelper.setTurboEnabled(!TurboHelper.isTurboSpeedEnabled())
+                        HotCornerSettings.HotCornerAction.TOGGLE_TURBO -> TurboHelper.setTurboEnabled(!TurboHelper.isTurboSpeedEnabled(), true)
                         HotCornerSettings.HotCornerAction.QUICK_SAVE -> {
                             NativeLibrary.saveState(NativeLibrary.QUICKSAVE_SLOT)
                             Toast.makeText(requireContext(), getString(R.string.saving), Toast.LENGTH_SHORT).show()
@@ -318,8 +320,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             }
         }
 
-        // Show/hide the "Show FPS" overlay
-        updateShowFpsOverlay()
+        // Show/hide the "Stats" overlay
+        updateShowPerformanceOverlay()
 
         // Initialize border overlay
         initializeBorderOverlay()
@@ -481,7 +483,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 }
 
                 R.id.menu_exit -> {
-                    emulationState.pause()
+                    val wasPausedBeforeDialog = emulationState.isPaused
+                    if (!wasPausedBeforeDialog) {
+                        emulationState.pause()
+                    }
                     MaterialAlertDialogBuilder(requireContext())
                         .setTitle(R.string.emulation_close_game)
                         .setMessage(R.string.emulation_close_game_message)
@@ -534,9 +539,15 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                             emulationActivity.requestClearLastPlayed()
                         }
                         .setNegativeButton(android.R.string.cancel) { _: DialogInterface?, _: Int ->
-                            emulationState.unpause()
+                            if (!wasPausedBeforeDialog) {
+                                emulationState.unpause()
+                            }
                         }
-                        .setOnCancelListener { emulationState.unpause() }
+                        .setOnCancelListener {
+                            if (!wasPausedBeforeDialog) {
+                                emulationState.unpause()
+                            }
+                        }
                         .show()
                     true
                 }
@@ -946,6 +957,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
     override fun onPause() {
         if (NativeLibrary.isRunning()) {
+            // 在暂停 emulation 之前触发自动保存，此时 loop 还在运行，
+            // saveState() 入队的信号会被 loop 处理。
+            (activity as? EmulationActivity)?.tryAutoSave("onPause")
             emulationState.pause()
         }
         Choreographer.getInstance().removeFrameCallback(this)
@@ -1115,23 +1129,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
                 R.id.menu_haptic_feedback -> {
                     EmulationMenuSettings.hapticFeedback = !EmulationMenuSettings.hapticFeedback
-                    // 同步另一项的UI勾选状态
-                    popupMenu.menu.findItem(R.id.menu_haptic_feedback_buttons_only).isChecked =
-                        EmulationMenuSettings.hapticFeedbackButtonsOnly
-                    // 刷新自身勾选
                     it.isChecked = EmulationMenuSettings.hapticFeedback
-                    true
-                }
-
-                R.id.menu_haptic_feedback_buttons_only -> {
-                    // 开启该项将自动关闭”触摸反馈”，在设置层已做互斥；此处仅负责切换与UI刷新
-                    EmulationMenuSettings.hapticFeedbackButtonsOnly =
-                        !EmulationMenuSettings.hapticFeedbackButtonsOnly
-                    // 同步另一项的UI勾选状态
-                    popupMenu.menu.findItem(R.id.menu_haptic_feedback).isChecked =
-                        EmulationMenuSettings.hapticFeedback
-                    // 刷新自身勾选
-                    it.isChecked = EmulationMenuSettings.hapticFeedbackButtonsOnly
                     true
                 }
 
@@ -1426,7 +1424,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     }
 
     private fun showButtonSlidingMenu() {
-        val editor = preferences.edit()
+        val editor = defaultPreferences.edit()
 
         val buttonSlidingModes = mutableListOf<String>()
         buttonSlidingModes.add(getString(R.string.emulation_button_sliding_disabled))
@@ -1578,6 +1576,15 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             TurboHelper.unregisterListener(it)
             turboStateListener = null
         }
+        // Clean up border layout check runnable
+        layoutCheckRunnable?.let { runnable ->
+            borderViewRef?.removeCallbacks(runnable)
+        }
+        layoutCheckRunnable = null
+        borderViewRef = null
+        // Clean up perf stats updater
+        perfStatsUpdater?.let { perfStatsUpdateHandler.removeCallbacks(it) }
+        perfStatsUpdater = null
         stopTurboIndicatorAnimation()
         stopPauseIconAnimation()
         OverlayPreferencesManager.resetToGeneral()
@@ -2099,9 +2106,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     private fun showPauseIcon() {
         if (_binding == null) return
         try {
-            positionPauseIconOnTopScreen()
             binding.pauseOverlay.visibility = View.VISIBLE
             binding.pauseIconOverlay.visibility = View.VISIBLE
+            positionPauseIconOnTopScreen()
             startPauseIconAnimation()
         } catch (_: Exception) { }
     }
@@ -2117,35 +2124,27 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
     private fun positionPauseIconOnTopScreen() {
         if (_binding == null) return
+        val iconView = binding.pauseIconOverlay
         val layout = try { NativeLibrary.getScreenLayout() } catch (_: Exception) { null }
         if (layout == null || layout.size < 8) {
             // 退化：大致置于屏幕上半区中央
-            binding.pauseIconOverlay.post {
+            iconView.doOnLayout {
                 val parent = binding.root as View
                 val centerX = parent.width / 2f
                 val approxCenterY = parent.height / 4f
-                val halfW = binding.pauseIconOverlay.width / 2f
-                val halfH = binding.pauseIconOverlay.height / 2f
-                binding.pauseIconOverlay.x = centerX - halfW
-                binding.pauseIconOverlay.y = approxCenterY - halfH
+                iconView.x = centerX - it.width / 2f
+                iconView.y = approxCenterY - it.height / 2f
             }
             return
         }
 
-        // 布局数组: [tlx, tly, trx, try, blx, bly, brx, bry]
-        val topLeftX = layout[0]
-        val topLeftY = layout[1]
-        val topRightX = layout[2]
-        val topRightY = layout[3]
+        // 布局数组: [left, top, right, bottom, ...] for top/bottom screens
+        val centerX = (layout[0] + layout[2]) / 2f
+        val centerY = (layout[1] + layout[3]) / 2f
 
-        val centerX = (topLeftX + topRightX) / 2f
-        val centerY = (topLeftY + topRightY) / 2f
-
-        binding.pauseIconOverlay.post {
-            val halfW = binding.pauseIconOverlay.width / 2f
-            val halfH = binding.pauseIconOverlay.height / 2f
-            binding.pauseIconOverlay.x = centerX - halfW
-            binding.pauseIconOverlay.y = centerY - halfH
+        iconView.doOnLayout {
+            iconView.x = centerX - it.width / 2f
+            iconView.y = centerY - it.height / 2f
         }
     }
 
@@ -2366,11 +2365,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 // Resolve titleId from path to check per-game switch
                 val titleId = org.citra.citra_emu.NativeLibrary.getTitleId(gamePath)
                 if (titleId == 0L) return
-                val key = "override_graphics_api_" + titleId
-                val enabled = prefs.getBoolean(key, false)
-                if (!enabled) return
 
-                // Read per-game selection: 0 system, 1 GL, 2 VK
+                // Read per-game selection: 0 system (no override), 1 GL, 2 VK
                 val selection = prefs.getInt("override_graphics_api_value_" + titleId, 0)
                 if (selection == 0) return
                 val targetApi = selection
@@ -2457,15 +2453,16 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         }
 
         // 使用更长的检查间隔（1秒），减少CPU使用
-        val layoutCheckRunnable = object : Runnable {
+        borderViewRef = borderView
+        layoutCheckRunnable = object : Runnable {
             override fun run() {
-                if (!requireActivity().isFinishing && !isDetached) {
+                if (isAdded && !isDetached && activity?.isFinishing == false) {
                     checkForChanges()
                     borderView.postDelayed(this, 1000) // 1秒检查一次
                 }
             }
         }
-        borderView.post(layoutCheckRunnable)
+        borderView.post(layoutCheckRunnable!!)
     }
 
 
