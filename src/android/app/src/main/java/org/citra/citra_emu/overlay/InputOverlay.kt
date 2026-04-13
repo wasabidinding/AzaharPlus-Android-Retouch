@@ -32,6 +32,8 @@ import org.citra.citra_emu.utils.TurboHelper
 import org.citra.citra_emu.utils.OverlayPreferencesManager
 import java.lang.NullPointerException
 import kotlin.math.min
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 
 /**
@@ -47,6 +49,11 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
     private val overlayDpads: MutableSet<InputOverlayDrawableDpad> = HashSet()
     private val overlayJoysticks: MutableSet<InputOverlayDrawableJoystick> = HashSet()
     private var isInEditMode = false
+    private val longPressHandler = Handler(Looper.getMainLooper())
+    private var pendingLongPressButton: InputOverlayDrawableButton? = null
+    private var pendingLongPressSaving: Boolean = false
+    private var longPressRunnable: Runnable? = null
+    var longPressListener: OnOverlayLongPressListener? = null
     private var buttonBeingConfigured: InputOverlayDrawableButton? = null
     private var dpadBeingConfigured: InputOverlayDrawableDpad? = null
     private var joystickBeingConfigured: InputOverlayDrawableJoystick? = null
@@ -90,6 +97,42 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             isEnabled,
             (context as Activity).windowManager.defaultDisplay.rotation
         )
+    }
+
+    private fun scheduleLongPressCheck(button: InputOverlayDrawableButton, isSaving: Boolean) {
+        cancelPendingLongPress()
+        pendingLongPressButton = button
+        pendingLongPressSaving = isSaving
+        longPressRunnable = Runnable {
+            button.longPressTriggered = true
+            pendingLongPressButton = null
+
+            val bounds = button.bounds
+            val location = IntArray(2)
+            getLocationOnScreen(location)
+            val anchorX = location[0] + bounds.left
+            val anchorY = location[1] + bounds.top
+
+            hapticFeedback(HapticFeedbackConstants.LONG_PRESS)
+
+            val emulationActivity = NativeLibrary.sEmulationActivity.get()
+            emulationActivity?.runOnUiThread {
+                longPressListener?.onSaveSlotLongPress(
+                    isSaving, anchorX, anchorY, bounds.width(), bounds.height()
+                )
+            }
+        }
+        longPressHandler.postDelayed(longPressRunnable!!, LONG_PRESS_THRESHOLD_MS)
+    }
+
+    private fun cancelPendingLongPress() {
+        longPressRunnable?.let { longPressHandler.removeCallbacks(it) }
+        longPressRunnable = null
+        pendingLongPressButton = null
+    }
+
+    interface OnOverlayLongPressListener {
+        fun onSaveSlotLongPress(isSaving: Boolean, anchorX: Int, anchorY: Int, anchorWidth: Int, anchorHeight: Int)
     }
 
     fun hapticFeedback(type: Int) {
@@ -281,13 +324,10 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
                             NativeLibrary.ButtonType.BUTTON_SWAP -> swapScreen()
                             NativeLibrary.ButtonType.BUTTON_TURBO -> TurboHelper.toggleTurbo(true)
                             NativeLibrary.ButtonType.BUTTON_QUICK_SAVE -> {
-                                NativeLibrary.saveState(NativeLibrary.QUICKSAVE_SLOT)
-                                Toast.makeText(context, context.getString(R.string.saving), Toast.LENGTH_SHORT).show()
+                                scheduleLongPressCheck(button, isSaving = true)
                             }
                             NativeLibrary.ButtonType.BUTTON_QUICK_LOAD -> {
-                                val wasLoaded = NativeLibrary.loadStateIfAvailable(NativeLibrary.QUICKSAVE_SLOT)
-                                val stringRes = if (wasLoaded) R.string.loading else R.string.quickload_not_found
-                                Toast.makeText(context, context.getString(stringRes), Toast.LENGTH_SHORT).show()
+                                scheduleLongPressCheck(button, isSaving = false)
                             }
                             NativeLibrary.ButtonType.BUTTON_MENU -> {
                                 val emulationActivity = NativeLibrary.sEmulationActivity.get()
@@ -298,6 +338,27 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
                                     fragment?.openDrawer() ?: emulationActivity.onBackPressed()
                                 }
                             }
+                        }
+                    }
+
+                    // Handle short press on release for deferred Quick Save/Load buttons
+                    if (button.status == NativeLibrary.ButtonState.RELEASED) {
+                        if (pendingLongPressButton == button) {
+                            // Released before long press — execute short press action
+                            cancelPendingLongPress()
+                            when (button.id) {
+                                NativeLibrary.ButtonType.BUTTON_QUICK_SAVE -> {
+                                    NativeLibrary.saveState(NativeLibrary.QUICKSAVE_SLOT)
+                                    Toast.makeText(context, context.getString(R.string.saving), Toast.LENGTH_SHORT).show()
+                                }
+                                NativeLibrary.ButtonType.BUTTON_QUICK_LOAD -> {
+                                    val wasLoaded = NativeLibrary.loadStateIfAvailable(NativeLibrary.QUICKSAVE_SLOT)
+                                    val stringRes = if (wasLoaded) R.string.loading else R.string.quickload_not_found
+                                    Toast.makeText(context, context.getString(stringRes), Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        } else if (button.longPressTriggered) {
+                            button.longPressTriggered = false
                         }
                     }
 
@@ -1154,6 +1215,7 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
     }
 
     companion object {
+        private const val LONG_PRESS_THRESHOLD_MS = 500L
         private val preferences
             get() = OverlayPreferencesManager.getActivePreferences()
 

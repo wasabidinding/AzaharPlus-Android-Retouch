@@ -49,6 +49,7 @@ import androidx.core.graphics.Insets
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.doOnLayout
+import org.citra.citra_emu.overlay.InputOverlay
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.drawerlayout.widget.DrawerLayout.DrawerListener
 import androidx.fragment.app.Fragment
@@ -114,6 +115,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     private var perfStatsUpdater: Runnable? = null
     private var layoutCheckRunnable: Runnable? = null
     private var borderViewRef: org.citra.citra_emu.overlay.BorderOverlayView? = null
+    private var saveSlotPopup: android.widget.PopupWindow? = null
 
     private lateinit var emulationActivity: EmulationActivity
 
@@ -255,6 +257,13 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             // 恢复热区
             binding.hotCornerOverlay.visibility = View.VISIBLE
             binding.hotCornerOverlay.refresh()
+        }
+
+        // Register long press listener for Quick Save/Load buttons
+        binding.surfaceInputOverlay.longPressListener = object : InputOverlay.OnOverlayLongPressListener {
+            override fun onSaveSlotLongPress(isSaving: Boolean, anchorX: Int, anchorY: Int, anchorWidth: Int, anchorHeight: Int) {
+                showSaveSlotPopup(isSaving, anchorX, anchorY, anchorWidth, anchorHeight)
+            }
         }
 
         // Show/hide the "Stats" overlay
@@ -918,6 +927,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     }
 
     override fun onPause() {
+        saveSlotPopup?.dismiss()
         if (NativeLibrary.isRunning()) {
             // 在暂停 emulation 之前触发自动保存，此时 loop 还在运行，
             // saveState() 入队的信号会被 loop 处理。
@@ -1035,7 +1045,132 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         popupMenu.show()
     }
 
+    private fun showSaveSlotPopup(isSaving: Boolean, anchorX: Int, anchorY: Int, anchorW: Int, anchorH: Int) {
+        saveSlotPopup?.dismiss()
+        val ctx = requireContext()
+        val savestates = NativeLibrary.getSavestateInfo()
+        val latestSave = savestates?.maxByOrNull { it.time?.time ?: 0L }
 
+        val saveInfoMap = HashMap<Int, NativeLibrary.SaveStateInfo>()
+        savestates?.forEach { saveInfoMap[it.slot] = it }
+
+        val slots = listOf(
+            NativeLibrary.QUICKSAVE_SLOT,
+            NativeLibrary.AUTO_SAVE_SLOT,
+            1, 2, 3
+        )
+
+        val density = resources.displayMetrics.density
+        fun dp(v: Int) = (v * density).toInt()
+
+        // Build popup content
+        val container = android.widget.LinearLayout(ctx).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            val bg = android.graphics.drawable.GradientDrawable().apply {
+                setColor(0xE0202020.toInt())
+                cornerRadius = dp(8).toFloat()
+            }
+            background = bg
+            setPadding(dp(2), dp(4), dp(2), dp(4))
+        }
+
+        for (slot in slots) {
+            val info = saveInfoMap[slot]
+            val isLatest = info != null && info == latestSave
+            val hasData = info != null
+
+            val itemLayout = android.widget.LinearLayout(ctx).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                setPadding(dp(12), dp(5), dp(12), dp(5))
+                val outValue = android.util.TypedValue()
+                ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
+                foreground = ctx.getDrawable(outValue.resourceId)
+                isClickable = true
+            }
+
+            val slotName = when (slot) {
+                NativeLibrary.QUICKSAVE_SLOT -> getString(R.string.emulation_quicksave_slot)
+                NativeLibrary.AUTO_SAVE_SLOT -> getString(R.string.emulation_autosave_slot)
+                else -> "Slot $slot"
+            }
+
+            val nameView = android.widget.TextView(ctx).apply {
+                text = slotName
+                textSize = 13f
+                setTextColor(if (isLatest) 0xFF4A90D9.toInt() else 0xFFE0E0E0.toInt())
+                typeface = if (isLatest) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+            }
+
+            val timeView = android.widget.TextView(ctx).apply {
+                textSize = 9f
+                if (info?.time != null) {
+                    text = android.text.format.DateFormat.format("yyyy-MM-dd HH:mm", info.time)
+                    setTextColor(if (isLatest) 0xFF4A90D9.toInt() else 0x99FFFFFF.toInt())
+                } else {
+                    text = if (isSaving) "" else "Empty"
+                    setTextColor(0x55FFFFFF)
+                }
+            }
+
+            itemLayout.addView(nameView)
+            if (info?.time != null || !isSaving) {
+                itemLayout.addView(timeView)
+            }
+
+            if (!isSaving && !hasData) {
+                itemLayout.alpha = 0.4f
+                itemLayout.isClickable = false
+            } else {
+                itemLayout.setOnClickListener {
+                    if (isSaving) {
+                        NativeLibrary.saveState(slot)
+                        Toast.makeText(ctx, getString(R.string.saving), Toast.LENGTH_SHORT).show()
+                    } else {
+                        NativeLibrary.loadState(slot)
+                        Toast.makeText(ctx, getString(R.string.loading), Toast.LENGTH_SHORT).show()
+                    }
+                    saveSlotPopup?.dismiss()
+                }
+            }
+
+            container.addView(itemLayout)
+        }
+
+        val popup = android.widget.PopupWindow(
+            container,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        ).apply {
+            elevation = dp(8).toFloat()
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0x00000000))
+            setOnDismissListener { saveSlotPopup = null }
+        }
+        saveSlotPopup = popup
+
+        // Measure popup to calculate position
+        val screenWidth = resources.displayMetrics.widthPixels
+        val screenHeight = resources.displayMetrics.heightPixels
+        container.measure(
+            View.MeasureSpec.makeMeasureSpec(screenWidth, View.MeasureSpec.AT_MOST),
+            View.MeasureSpec.makeMeasureSpec(screenHeight, View.MeasureSpec.AT_MOST)
+        )
+        val popupW = container.measuredWidth
+        val popupH = container.measuredHeight
+
+        // Position: default right of button, flip to left if no space
+        var x = anchorX + anchorW + dp(4)
+        if (x + popupW > screenWidth) {
+            x = anchorX - popupW - dp(4)
+        }
+        x = x.coerceIn(0, (screenWidth - popupW).coerceAtLeast(0))
+
+        // Vertically center on button, clamped to screen
+        var y = anchorY + anchorH / 2 - popupH / 2
+        y = y.coerceIn(0, (screenHeight - popupH).coerceAtLeast(0))
+
+        popup.showAtLocation(binding.root, android.view.Gravity.NO_GRAVITY, x, y)
+    }
 
     private fun displaySavestateWarning() {
         if (defaultPreferences.getBoolean("savestateWarningShown", false)) {

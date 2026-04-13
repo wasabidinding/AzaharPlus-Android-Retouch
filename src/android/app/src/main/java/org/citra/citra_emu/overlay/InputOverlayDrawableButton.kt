@@ -44,6 +44,7 @@ class InputOverlayDrawableButton(
     val opacity: Int
 ) {
     var trackId: Int
+    var longPressTriggered: Boolean = false
 
     private var isMotionFirstButton = false // mark the first activated button with the current motion
 
@@ -131,6 +132,7 @@ class InputOverlayDrawableButton(
         pressedState = true
         isMotionFirstButton = firstBtn
         trackId = pointerId
+        longPressTriggered = false
         overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
     }
 
