@@ -1062,16 +1062,37 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
         val density = resources.displayMetrics.density
         fun dp(v: Int) = (v * density).toInt()
+        fun dpf(v: Int) = v * density
 
-        // Build popup content
+        // Use real window size (includes cutout/system bars area)
+        val windowBounds = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            requireActivity().windowManager.currentWindowMetrics.bounds
+        } else {
+            val dm = android.util.DisplayMetrics()
+            @Suppress("DEPRECATION")
+            requireActivity().windowManager.defaultDisplay.getRealMetrics(dm)
+            android.graphics.Rect(0, 0, dm.widthPixels, dm.heightPixels)
+        }
+        val screenWidth = windowBounds.width()
+        val screenHeight = windowBounds.height()
+
+        // Dimmed backdrop overlay (8% black)
+        val dimOverlay = View(ctx).apply {
+            setBackgroundColor(0x14000000) // 8% black
+        }
+
+        // White card container
         val container = android.widget.LinearLayout(ctx).apply {
             orientation = android.widget.LinearLayout.VERTICAL
             val bg = android.graphics.drawable.GradientDrawable().apply {
-                setColor(0xE0202020.toInt())
-                cornerRadius = dp(8).toFloat()
+                setColor(0xFFFFFFFF.toInt())
+                cornerRadius = dpf(16)
             }
             background = bg
-            setPadding(dp(2), dp(4), dp(2), dp(4))
+            clipToOutline = true
+            outlineProvider = android.view.ViewOutlineProvider.BACKGROUND
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            minimumWidth = dp(140)
         }
 
         for (slot in slots) {
@@ -1081,7 +1102,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
             val itemLayout = android.widget.LinearLayout(ctx).apply {
                 orientation = android.widget.LinearLayout.VERTICAL
-                setPadding(dp(12), dp(5), dp(12), dp(5))
+                setPadding(dp(14), dp(6), dp(14), dp(6))
                 val outValue = android.util.TypedValue()
                 ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
                 foreground = ctx.getDrawable(outValue.resourceId)
@@ -1096,20 +1117,21 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
             val nameView = android.widget.TextView(ctx).apply {
                 text = slotName
-                textSize = 13f
-                setTextColor(if (isLatest) 0xFF4A90D9.toInt() else 0xFFE0E0E0.toInt())
+                textSize = 14f
+                setTextColor(if (isLatest) 0xFF1A6DD9.toInt() else 0xFF333333.toInt())
                 typeface = if (isLatest) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
             }
 
             val timeView = android.widget.TextView(ctx).apply {
-                textSize = 9f
+                textSize = 10f
                 if (info?.time != null) {
                     text = android.text.format.DateFormat.format("yyyy-MM-dd HH:mm", info.time)
-                    setTextColor(if (isLatest) 0xFF4A90D9.toInt() else 0x99FFFFFF.toInt())
+                    setTextColor(if (isLatest) 0xFF1A6DD9.toInt() else 0xFF999999.toInt())
                 } else {
                     text = if (isSaving) "" else "Empty"
-                    setTextColor(0x55FFFFFF)
+                    setTextColor(0xFFBBBBBB.toInt())
                 }
+                setPadding(0, dp(1), 0, 0)
             }
 
             itemLayout.addView(nameView)
@@ -1118,7 +1140,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             }
 
             if (!isSaving && !hasData) {
-                itemLayout.alpha = 0.4f
+                itemLayout.alpha = 0.35f
                 itemLayout.isClickable = false
             } else {
                 itemLayout.setOnClickListener {
@@ -1136,21 +1158,27 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             container.addView(itemLayout)
         }
 
+        // Wrap: dim overlay (fullscreen) + card (positioned)
+        val root = android.widget.FrameLayout(ctx).apply {
+            addView(dimOverlay)
+            addView(container)
+            // Tap outside card to dismiss
+            setOnClickListener { saveSlotPopup?.dismiss() }
+        }
+
         val popup = android.widget.PopupWindow(
-            container,
-            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            root,
+            screenWidth,
+            screenHeight,
             true
         ).apply {
-            elevation = dp(8).toFloat()
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0x00000000))
+            isClippingEnabled = false
             setOnDismissListener { saveSlotPopup = null }
         }
         saveSlotPopup = popup
 
-        // Measure popup to calculate position
-        val screenWidth = resources.displayMetrics.widthPixels
-        val screenHeight = resources.displayMetrics.heightPixels
+        // Measure card to calculate position
         container.measure(
             View.MeasureSpec.makeMeasureSpec(screenWidth, View.MeasureSpec.AT_MOST),
             View.MeasureSpec.makeMeasureSpec(screenHeight, View.MeasureSpec.AT_MOST)
@@ -1158,18 +1186,47 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         val popupW = container.measuredWidth
         val popupH = container.measuredHeight
 
-        // Position: default right of button, flip to left if no space
-        var x = anchorX + anchorW + dp(4)
-        if (x + popupW > screenWidth) {
-            x = anchorX - popupW - dp(4)
-        }
-        x = x.coerceIn(0, (screenWidth - popupW).coerceAtLeast(0))
+        // Position: default right of button with gap for finger clearance, flip to left if no space
+        val gap = dp(20)
+        val fromRight = anchorX + anchorW + gap
+        val fromLeft = anchorX - popupW - gap
+        val popRight = fromRight + popupW <= screenWidth
+        var cardX = if (popRight) fromRight else fromLeft
+        cardX = cardX.coerceIn(0, (screenWidth - popupW).coerceAtLeast(0))
 
         // Vertically center on button, clamped to screen
-        var y = anchorY + anchorH / 2 - popupH / 2
-        y = y.coerceIn(0, (screenHeight - popupH).coerceAtLeast(0))
+        var cardY = anchorY + anchorH / 2 - popupH / 2
+        cardY = cardY.coerceIn(0, (screenHeight - popupH).coerceAtLeast(0))
 
-        popup.showAtLocation(binding.root, android.view.Gravity.NO_GRAVITY, x, y)
+        // Position the card within the fullscreen root
+        container.layoutParams = android.widget.FrameLayout.LayoutParams(
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            leftMargin = cardX
+            topMargin = cardY
+        }
+
+        popup.showAtLocation(binding.root, android.view.Gravity.NO_GRAVITY, 0, 0)
+
+        // Entrance animation: slide + scale from anchor direction, ease-out-quart
+        val translateFrom = if (popRight) -dpf(24) else dpf(24)
+        container.translationX = translateFrom
+        container.scaleX = 0.8f
+        container.scaleY = 0.8f
+        container.alpha = 0f
+        container.animate()
+            .translationX(0f)
+            .scaleX(1f)
+            .scaleY(1f)
+            .alpha(1f)
+            .setDuration(250)
+            .setInterpolator(android.view.animation.PathInterpolator(0.25f, 1f, 0.5f, 1f))
+            .start()
+
+        // Dim overlay fade in
+        dimOverlay.alpha = 0f
+        dimOverlay.animate().alpha(1f).setDuration(200).start()
     }
 
     private fun displaySavestateWarning() {

@@ -133,7 +133,11 @@ class InputOverlayDrawableButton(
         isMotionFirstButton = firstBtn
         trackId = pointerId
         longPressTriggered = false
-        overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        // Skip press haptic for long-press-capable buttons; haptic fires on long press detection
+        if (id != NativeLibrary.ButtonType.BUTTON_QUICK_SAVE &&
+            id != NativeLibrary.ButtonType.BUTTON_QUICK_LOAD) {
+            overlay.hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+        }
     }
 
     private fun buttonUp(overlay: InputOverlay, preserveTrackId: Boolean) {

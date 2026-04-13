@@ -344,8 +344,9 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
                     // Handle short press on release for deferred Quick Save/Load buttons
                     if (button.status == NativeLibrary.ButtonState.RELEASED) {
                         if (pendingLongPressButton == button) {
-                            // Released before long press — execute short press action
+                            // Released before long press — execute short press action with haptic
                             cancelPendingLongPress()
+                            hapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
                             when (button.id) {
                                 NativeLibrary.ButtonType.BUTTON_QUICK_SAVE -> {
                                     NativeLibrary.saveState(NativeLibrary.QUICKSAVE_SLOT)
@@ -1215,7 +1216,7 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
     }
 
     companion object {
-        private const val LONG_PRESS_THRESHOLD_MS = 500L
+        private const val LONG_PRESS_THRESHOLD_MS = 350L
         private val preferences
             get() = OverlayPreferencesManager.getActivePreferences()
 
