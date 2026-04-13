@@ -120,13 +120,12 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/about_game_play"
-                style="@style/Widget.Material3.Button.Icon"
-                android:layout_width="142dp"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:contentDescription="@string/play"
                 android:focusedByDefault="true"
                 android:text="@string/play"
-                android:textAlignment="center"
                 app:icon="@drawable/ic_play" />
 
             <com.google.android.material.button.MaterialButton
