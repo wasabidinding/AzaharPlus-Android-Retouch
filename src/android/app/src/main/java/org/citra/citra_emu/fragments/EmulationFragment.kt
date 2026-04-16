@@ -116,6 +116,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     private var layoutCheckRunnable: Runnable? = null
     private var borderViewRef: org.citra.citra_emu.overlay.BorderOverlayView? = null
     private var saveSlotPopup: android.widget.PopupWindow? = null
+    private var saveSlotItems: List<Pair<View, (() -> Unit)?>> = emptyList()
+    private var saveSlotHighlightedIndex: Int = -1
 
     private lateinit var emulationActivity: EmulationActivity
 
@@ -263,6 +265,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         binding.surfaceInputOverlay.longPressListener = object : InputOverlay.OnOverlayLongPressListener {
             override fun onSaveSlotLongPress(isSaving: Boolean, anchorX: Int, anchorY: Int, anchorWidth: Int, anchorHeight: Int) {
                 showSaveSlotPopup(isSaving, anchorX, anchorY, anchorWidth, anchorHeight)
+            }
+            override fun onSaveSlotDragMove(screenX: Int, screenY: Int) {
+                updateSaveSlotDragHighlight(screenX, screenY)
+            }
+            override fun onSaveSlotDragRelease(screenX: Int, screenY: Int) {
+                commitSaveSlotDragSelection(screenX, screenY)
             }
         }
 
@@ -1095,6 +1103,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             minimumWidth = dp(140)
         }
 
+        val itemEntries = mutableListOf<Pair<View, (() -> Unit)?>>()
         for (slot in slots) {
             val info = saveInfoMap[slot]
             val isLatest = info != null && info == latestSave
@@ -1139,11 +1148,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 itemLayout.addView(timeView)
             }
 
-            if (!isSaving && !hasData) {
+            val action: (() -> Unit)? = if (!isSaving && !hasData) {
                 itemLayout.alpha = 0.35f
                 itemLayout.isClickable = false
+                null
             } else {
-                itemLayout.setOnClickListener {
+                val slotAction: () -> Unit = {
                     if (isSaving) {
                         NativeLibrary.saveState(slot)
                         Toast.makeText(ctx, getString(R.string.saving), Toast.LENGTH_SHORT).show()
@@ -1153,10 +1163,15 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                     }
                     saveSlotPopup?.dismiss()
                 }
+                itemLayout.setOnClickListener { slotAction() }
+                slotAction
             }
 
+            itemEntries.add(itemLayout to action)
             container.addView(itemLayout)
         }
+        saveSlotItems = itemEntries
+        saveSlotHighlightedIndex = -1
 
         // Wrap: dim overlay (fullscreen) + card (positioned)
         val root = android.widget.FrameLayout(ctx).apply {
@@ -1174,7 +1189,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         ).apply {
             setBackgroundDrawable(android.graphics.drawable.ColorDrawable(0x00000000))
             isClippingEnabled = false
-            setOnDismissListener { saveSlotPopup = null }
+            setOnDismissListener {
+                saveSlotPopup = null
+                saveSlotItems = emptyList()
+                saveSlotHighlightedIndex = -1
+            }
         }
         saveSlotPopup = popup
 
@@ -1227,6 +1246,46 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         // Dim overlay fade in
         dimOverlay.alpha = 0f
         dimOverlay.animate().alpha(1f).setDuration(200).start()
+    }
+
+    private fun updateSaveSlotDragHighlight(screenX: Int, screenY: Int) {
+        if (saveSlotItems.isEmpty()) return
+        var hitIndex = -1
+        for (i in saveSlotItems.indices) {
+            val (view, action) = saveSlotItems[i]
+            if (action == null) continue // disabled item
+            val loc = IntArray(2)
+            view.getLocationOnScreen(loc)
+            val inX = screenX >= loc[0] && screenX < loc[0] + view.width
+            val inY = screenY >= loc[1] && screenY < loc[1] + view.height
+            if (inX && inY) {
+                hitIndex = i
+                break
+            }
+        }
+        if (hitIndex != saveSlotHighlightedIndex) {
+            // Clear previous highlight
+            if (saveSlotHighlightedIndex >= 0 && saveSlotHighlightedIndex < saveSlotItems.size) {
+                saveSlotItems[saveSlotHighlightedIndex].first.setBackgroundColor(0x00000000)
+            }
+            // Set new highlight
+            if (hitIndex >= 0) {
+                saveSlotItems[hitIndex].first.setBackgroundColor(0x1A1A6DD9) // 10% blue
+            }
+            saveSlotHighlightedIndex = hitIndex
+        }
+    }
+
+    private fun commitSaveSlotDragSelection(screenX: Int, screenY: Int) {
+        updateSaveSlotDragHighlight(screenX, screenY)
+        if (saveSlotHighlightedIndex >= 0 && saveSlotHighlightedIndex < saveSlotItems.size) {
+            saveSlotItems[saveSlotHighlightedIndex].second?.invoke()
+        } else {
+            // Released outside any item — just dismiss
+            saveSlotPopup?.dismiss()
+        }
+        saveSlotHighlightedIndex = -1
+        saveSlotItems = emptyList()
     }
 
     private fun displaySavestateWarning() {

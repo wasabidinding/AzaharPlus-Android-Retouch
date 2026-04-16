@@ -53,6 +53,8 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
     private var pendingLongPressButton: InputOverlayDrawableButton? = null
     private var pendingLongPressSaving: Boolean = false
     private var longPressRunnable: Runnable? = null
+    private var dragSelectActive: Boolean = false
+    private var dragSelectPointerId: Int = -1
     var longPressListener: OnOverlayLongPressListener? = null
     private var buttonBeingConfigured: InputOverlayDrawableButton? = null
     private var dpadBeingConfigured: InputOverlayDrawableDpad? = null
@@ -107,6 +109,10 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
             button.longPressTriggered = true
             pendingLongPressButton = null
 
+            // Activate drag-select mode with the pointer that pressed the button
+            dragSelectActive = true
+            dragSelectPointerId = button.trackId
+
             val bounds = button.bounds
             val location = IntArray(2)
             getLocationOnScreen(location)
@@ -133,6 +139,8 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
 
     interface OnOverlayLongPressListener {
         fun onSaveSlotLongPress(isSaving: Boolean, anchorX: Int, anchorY: Int, anchorWidth: Int, anchorHeight: Int)
+        fun onSaveSlotDragMove(screenX: Int, screenY: Int)
+        fun onSaveSlotDragRelease(screenX: Int, screenY: Int)
     }
 
     fun hapticFeedback(type: Int) {
@@ -245,6 +253,38 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
     override fun onTouch(v: View, event: MotionEvent): Boolean {
         if (isInEditMode) {
             return onTouchWhileEditing(event)
+        }
+
+        // Intercept drag-select events when popup is active
+        if (dragSelectActive) {
+            val motionAction = event.action and MotionEvent.ACTION_MASK
+            val pointerIndex = event.actionIndex
+            if (motionAction == MotionEvent.ACTION_MOVE) {
+                // Find the pointer matching our drag
+                for (i in 0 until event.pointerCount) {
+                    if (event.getPointerId(i) == dragSelectPointerId) {
+                        val location = IntArray(2)
+                        getLocationOnScreen(location)
+                        val screenX = location[0] + event.getX(i).toInt()
+                        val screenY = location[1] + event.getY(i).toInt()
+                        longPressListener?.onSaveSlotDragMove(screenX, screenY)
+                        break
+                    }
+                }
+                return true
+            } else if (motionAction == MotionEvent.ACTION_UP ||
+                       motionAction == MotionEvent.ACTION_POINTER_UP) {
+                if (event.getPointerId(pointerIndex) == dragSelectPointerId) {
+                    val location = IntArray(2)
+                    getLocationOnScreen(location)
+                    val screenX = location[0] + event.getX(pointerIndex).toInt()
+                    val screenY = location[1] + event.getY(pointerIndex).toInt()
+                    longPressListener?.onSaveSlotDragRelease(screenX, screenY)
+                    dragSelectActive = false
+                    dragSelectPointerId = -1
+                    return true
+                }
+            }
         }
 
         val motionEvent = event.action and MotionEvent.ACTION_MASK
@@ -360,6 +400,7 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
                             }
                         } else if (button.longPressTriggered) {
                             button.longPressTriggered = false
+                            // Drag select handled in the intercept block above
                         }
                     }
 
