@@ -1266,11 +1266,15 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         if (hitIndex != saveSlotHighlightedIndex) {
             // Clear previous highlight
             if (saveSlotHighlightedIndex >= 0 && saveSlotHighlightedIndex < saveSlotItems.size) {
-                saveSlotItems[saveSlotHighlightedIndex].first.setBackgroundColor(0x00000000)
+                saveSlotItems[saveSlotHighlightedIndex].first.background = null
             }
-            // Set new highlight
+            // Set new highlight: light blue with rounded corners (smaller than menu's 16dp to echo it)
             if (hitIndex >= 0) {
-                saveSlotItems[hitIndex].first.setBackgroundColor(0x1A1A6DD9) // 10% blue
+                val highlight = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(0x1A1A6DD9) // 10% blue
+                    cornerRadius = dpf(10)
+                }
+                saveSlotItems[hitIndex].first.background = highlight
             }
             saveSlotHighlightedIndex = hitIndex
         }
