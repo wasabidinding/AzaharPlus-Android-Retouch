@@ -28,11 +28,13 @@ import android.os.SystemClock
 import android.text.Editable
 import android.text.Html
 import android.text.TextWatcher
+import android.graphics.Bitmap
 import android.view.Choreographer
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.util.TypedValue
 import android.view.MotionEvent
+import android.view.PixelCopy
 import android.view.Surface
 import android.view.SurfaceHolder
 import android.view.View
@@ -141,6 +143,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     private var cancelAutoResumeRequested = false
     private var turboIndicatorAnimator: ValueAnimator? = null
     private var pauseIconAnimator: ValueAnimator? = null
+    private var pauseFrozenBitmap: Bitmap? = null
+    // Bumped on every capture / hide / view-destroy so late PixelCopy callbacks
+    // can detect they are stale and discard their bitmap.
+    private var pauseFreezeGeneration: Int = 0
     private var turboStateListener: TurboHelper.TurboStateListener? = null
     private val turboIndicatorLayoutListener = View.OnLayoutChangeListener { _, _, _, _, _, _, _, _, _ ->
         if (_binding != null && TurboHelper.isTurboSpeedEnabled()) {
@@ -853,9 +859,13 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             emulationState.setKeepPausedRequested(false)
             emulationState.unpause()
             hidePauseIcon()
+            hideFrozenFrame()
         } else {
             // 用户显式暂停
             val didAutoSave = emulationActivity.tryAutoSave("manual_pause")
+            // Capture the live frame BEFORE pause() tears down the renderer's surface link,
+            // so the bitmap will keep showing across surface destruction (lock/app-switch).
+            captureFrozenFrame()
             emulationState.pause()
             emulationState.setKeepPausedRequested(true)
             showPauseIcon()
@@ -1804,6 +1814,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         perfStatsUpdater = null
         stopTurboIndicatorAnimation()
         stopPauseIconAnimation()
+        hideFrozenFrame()
         OverlayPreferencesManager.resetToGeneral()
         super.onDestroyView()
     }
@@ -2337,6 +2348,50 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             binding.pauseOverlay.visibility = View.GONE
             binding.pauseIconOverlay.visibility = View.GONE
         } catch (_: Exception) { }
+    }
+
+    private fun captureFrozenFrame() {
+        if (_binding == null) return
+        val surfaceView = binding.surfaceEmulation
+        val w = surfaceView.width
+        val h = surfaceView.height
+        if (w <= 0 || h <= 0) return
+        val bitmap = try {
+            Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        } catch (_: Throwable) { return }
+        val gen = ++pauseFreezeGeneration
+        val handler = Handler(Looper.getMainLooper())
+        try {
+            PixelCopy.request(surfaceView, bitmap, { copyResult ->
+                if (gen != pauseFreezeGeneration || _binding == null) {
+                    bitmap.recycle()
+                    return@request
+                }
+                if (copyResult == PixelCopy.SUCCESS) {
+                    pauseFrozenBitmap?.recycle()
+                    pauseFrozenBitmap = bitmap
+                    binding.pauseFreezeImage.setImageBitmap(bitmap)
+                    binding.pauseFreezeImage.visibility = View.VISIBLE
+                } else {
+                    bitmap.recycle()
+                }
+            }, handler)
+        } catch (_: IllegalArgumentException) {
+            bitmap.recycle()
+        }
+    }
+
+    private fun hideFrozenFrame() {
+        // Invalidate any in-flight PixelCopy callback first.
+        pauseFreezeGeneration++
+        if (_binding != null) {
+            try {
+                binding.pauseFreezeImage.visibility = View.GONE
+                binding.pauseFreezeImage.setImageDrawable(null)
+            } catch (_: Exception) { }
+        }
+        pauseFrozenBitmap?.recycle()
+        pauseFrozenBitmap = null
     }
 
     private fun positionPauseIconOnTopScreen() {
