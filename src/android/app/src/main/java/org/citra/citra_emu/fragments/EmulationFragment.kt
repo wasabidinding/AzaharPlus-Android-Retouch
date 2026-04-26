@@ -1272,7 +1272,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             if (hitIndex >= 0) {
                 val highlight = android.graphics.drawable.GradientDrawable().apply {
                     setColor(0x1A1A6DD9) // 10% blue
-                    cornerRadius = dpf(10)
+                    cornerRadius = dpToPx(10f)
                 }
                 saveSlotItems[hitIndex].first.background = highlight
             }
