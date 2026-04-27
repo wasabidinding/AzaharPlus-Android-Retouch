@@ -29,19 +29,6 @@
                 android:focusableInTouchMode="false" />
         </FrameLayout>
 
-        <!-- Frozen frame shown while paused; survives surface destruction so the
-             user keeps seeing the last drawn frame after lock/app-switch. -->
-        <ImageView
-            android:id="@+id/pause_freeze_image"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_gravity="center"
-            android:scaleType="fitXY"
-            android:visibility="gone"
-            android:clickable="false"
-            android:focusable="false"
-            android:contentDescription="@null" />
-
         <!-- Custom border overlay view -->
         <org.citra.citra_emu.overlay.BorderOverlayView
             android:id="@+id/custom_border_overlay"
