@@ -488,7 +488,7 @@
     <string name="emulation_autosave_slot">Auto Save</string>
     <string name="emulation_occupied_autosave_slot">Auto Save - %1$tF %1$tR</string>
     <string name="emulation_autosave_prev1_slot">Previous Auto Save</string>
-    <string name="emulation_autosave_prev2_slot">Auto Save (2 ago)</string>
+    <string name="emulation_autosave_prev2_slot">Older Auto Save</string>
     <string name="emulation_show_fps">Show FPS</string>
     <string name="emulation_haptic_feedback">Haptic Feedback</string>
     <string name="emulation_overlay_options">Overlay Options</string>
