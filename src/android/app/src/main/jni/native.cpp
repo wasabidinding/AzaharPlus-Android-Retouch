@@ -1071,8 +1071,8 @@ JNIEXPORT jobject JNICALL Java_org_citra_citra_1emu_utils_CiaInstallWorker_insta
     return IDCache::GetJavaCiaInstallStatus(res);
 }
 
-jobjectArray Java_org_citra_citra_1emu_NativeLibrary_getSavestateInfo(
-    JNIEnv* env, [[maybe_unused]] jobject obj) {
+static jobjectArray BuildSaveStateInfoArray(JNIEnv* env,
+                                            const std::vector<Core::SaveStateInfo>& savestates) {
     const jclass date_class = env->FindClass("java/util/Date");
     const auto date_constructor = env->GetMethodID(date_class, "<init>", "(J)V");
 
@@ -1080,17 +1080,6 @@ jobjectArray Java_org_citra_citra_1emu_NativeLibrary_getSavestateInfo(
     const auto slot_field = env->GetFieldID(savestate_info_class, "slot", "I");
     const auto date_field = env->GetFieldID(savestate_info_class, "time", "Ljava/util/Date;");
 
-    const Core::System& system{Core::System::GetInstance()};
-    if (!system.IsPoweredOn()) {
-        return nullptr;
-    }
-
-    u64 title_id;
-    if (system.GetAppLoader().ReadProgramId(title_id) != Loader::ResultStatus::Success) {
-        return nullptr;
-    }
-
-    const auto savestates = Core::ListSaveStates(title_id, system.Movie().GetCurrentMovieID());
     const jobjectArray array =
         env->NewObjectArray(static_cast<jsize>(savestates.size()), savestate_info_class, nullptr);
     for (std::size_t i = 0; i < savestates.size(); ++i) {
@@ -1103,6 +1092,39 @@ jobjectArray Java_org_citra_citra_1emu_NativeLibrary_getSavestateInfo(
         env->SetObjectArrayElement(array, i, object);
     }
     return array;
+}
+
+jobjectArray Java_org_citra_citra_1emu_NativeLibrary_getSavestateInfo(
+    JNIEnv* env, [[maybe_unused]] jobject obj) {
+    const Core::System& system{Core::System::GetInstance()};
+    if (!system.IsPoweredOn()) {
+        return nullptr;
+    }
+
+    u64 title_id;
+    if (system.GetAppLoader().ReadProgramId(title_id) != Loader::ResultStatus::Success) {
+        return nullptr;
+    }
+
+    const auto savestates = Core::ListSaveStates(title_id, system.Movie().GetCurrentMovieID());
+    return BuildSaveStateInfoArray(env, savestates);
+}
+
+jobjectArray Java_org_citra_citra_1emu_NativeLibrary_getAutoSaveBackups(
+    JNIEnv* env, [[maybe_unused]] jobject obj) {
+    const Core::System& system{Core::System::GetInstance()};
+    if (!system.IsPoweredOn()) {
+        return nullptr;
+    }
+
+    u64 title_id;
+    if (system.GetAppLoader().ReadProgramId(title_id) != Loader::ResultStatus::Success) {
+        return nullptr;
+    }
+
+    const auto backups =
+        Core::ListAutoSaveBackups(title_id, system.Movie().GetCurrentMovieID());
+    return BuildSaveStateInfoArray(env, backups);
 }
 
 void Java_org_citra_citra_1emu_NativeLibrary_saveState([[maybe_unused]] JNIEnv* env,

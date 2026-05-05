@@ -38,6 +38,17 @@ static_assert(sizeof(CSTHeader) == 256, "CSTHeader should be 256 bytes");
 constexpr std::array<u8, 4> header_magic_bytes{{'C', 'S', 'T', 0x1B}};
 
 static std::string GetSaveStatePath(u64 program_id, u64 movie_id, u32 slot) {
+    if (IsAutoSaveBakSlot(slot)) {
+        const int bak_index = (slot == AutoSaveBak1Slot) ? 1 : 2;
+        if (movie_id) {
+            return fmt::format("{}{:016X}.movie{:016X}.{:02d}.bak{}.cst",
+                               FileUtil::GetUserPath(FileUtil::UserPath::StatesDir), program_id,
+                               movie_id, AutoSaveSlot, bak_index);
+        }
+        return fmt::format("{}{:016X}.{:02d}.bak{}.cst",
+                           FileUtil::GetUserPath(FileUtil::UserPath::StatesDir), program_id,
+                           AutoSaveSlot, bak_index);
+    }
     if (movie_id) {
         return fmt::format("{}{:016X}.movie{:016X}.{:02d}.cst",
                            FileUtil::GetUserPath(FileUtil::UserPath::StatesDir), program_id,
@@ -45,6 +56,25 @@ static std::string GetSaveStatePath(u64 program_id, u64 movie_id, u32 slot) {
     } else {
         return fmt::format("{}{:016X}.{:02d}.cst",
                            FileUtil::GetUserPath(FileUtil::UserPath::StatesDir), program_id, slot);
+    }
+}
+
+// Rotates the auto-save .cst file into bak1/bak2 before a fresh auto-save
+// overwrites it. Failures are logged but never throw — losing one historical
+// copy is acceptable; failing the user-visible save is not.
+static void RotateAutoSaveBackups(u64 program_id, u64 movie_id) {
+    const auto current = GetSaveStatePath(program_id, movie_id, AutoSaveSlot);
+    const auto bak1 = GetSaveStatePath(program_id, movie_id, AutoSaveBak1Slot);
+    const auto bak2 = GetSaveStatePath(program_id, movie_id, AutoSaveBak2Slot);
+
+    if (FileUtil::Exists(bak2) && !FileUtil::Delete(bak2)) {
+        LOG_WARNING(Core, "Failed to delete stale auto-save backup {}", bak2);
+    }
+    if (FileUtil::Exists(bak1) && !FileUtil::Rename(bak1, bak2)) {
+        LOG_WARNING(Core, "Failed to rotate auto-save backup {} -> {}", bak1, bak2);
+    }
+    if (FileUtil::Exists(current) && !FileUtil::Rename(current, bak1)) {
+        LOG_WARNING(Core, "Failed to rotate auto-save {} -> {}", current, bak1);
     }
 }
 
@@ -87,42 +117,60 @@ static bool ValidateSaveState(const CSTHeader& header, SaveStateInfo& info, u64 
     return true;
 }
 
+static bool ReadSaveStateInfo(u64 program_id, u64 movie_id, SaveStateInfo& info) {
+    const auto path = GetSaveStatePath(program_id, movie_id, info.slot);
+    if (!FileUtil::Exists(path)) {
+        return false;
+    }
+
+    FileUtil::IOFile file(path, "rb");
+    if (!file) {
+        LOG_ERROR(Core, "Could not open file {}", path);
+        return false;
+    }
+    CSTHeader header;
+    if (file.GetSize() < sizeof(header)) {
+        LOG_ERROR(Core, "File too small {}", path);
+        return false;
+    }
+    if (file.ReadBytes(&header, sizeof(header)) != sizeof(header)) {
+        LOG_ERROR(Core, "Could not read from file {}", path);
+        return false;
+    }
+    return ValidateSaveState(header, info, program_id, movie_id);
+}
+
+std::vector<SaveStateInfo> ListAutoSaveBackups(u64 program_id, u64 movie_id) {
+    std::vector<SaveStateInfo> result;
+    result.reserve(2);
+    for (u32 slot : {AutoSaveBak1Slot, AutoSaveBak2Slot}) {
+        SaveStateInfo info;
+        info.slot = slot;
+        if (ReadSaveStateInfo(program_id, movie_id, info)) {
+            result.emplace_back(std::move(info));
+        }
+    }
+    return result;
+}
+
 std::vector<SaveStateInfo> ListSaveStates(u64 program_id, u64 movie_id) {
     std::vector<SaveStateInfo> result;
     result.reserve(SaveStateSlotCount);
     for (u32 slot = 0; slot <= SaveStateSlotCount; ++slot) {
-        const auto path = GetSaveStatePath(program_id, movie_id, slot);
-        if (!FileUtil::Exists(path)) {
-            continue;
-        }
-
         SaveStateInfo info;
         info.slot = slot;
-
-        FileUtil::IOFile file(path, "rb");
-        if (!file) {
-            LOG_ERROR(Core, "Could not open file {}", path);
-            continue;
+        if (ReadSaveStateInfo(program_id, movie_id, info)) {
+            result.emplace_back(std::move(info));
         }
-        CSTHeader header;
-        if (file.GetSize() < sizeof(header)) {
-            LOG_ERROR(Core, "File too small {}", path);
-            continue;
-        }
-        if (file.ReadBytes(&header, sizeof(header)) != sizeof(header)) {
-            LOG_ERROR(Core, "Could not read from file {}", path);
-            continue;
-        }
-        if (!ValidateSaveState(header, info, program_id, movie_id)) {
-            continue;
-        }
-
-        result.emplace_back(std::move(info));
     }
     return result;
 }
 
 void System::SaveState(u32 slot) const {
+    if (IsAutoSaveBakSlot(slot)) {
+        // bak slots are history-only — they're produced by rotation, never by direct writes.
+        throw std::runtime_error("Cannot save to an auto-save backup slot");
+    }
     if (app_loader) {
         if (!app_loader->SupportsSaveStates()) {
             throw std::runtime_error("The current app loader doesn't support save states");
@@ -142,6 +190,10 @@ void System::SaveState(u32 slot) const {
     const auto path = GetSaveStatePath(title_id, movie_id, slot);
     if (!FileUtil::CreateFullPath(path)) {
         throw std::runtime_error("Could not create path " + path);
+    }
+
+    if (slot == AutoSaveSlot) {
+        RotateAutoSaveBackups(title_id, movie_id);
     }
 
     FileUtil::IOFile file(path, "wb");

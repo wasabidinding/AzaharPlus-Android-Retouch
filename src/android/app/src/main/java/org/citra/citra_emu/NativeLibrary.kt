@@ -644,7 +644,19 @@ object NativeLibrary {
     const val QUICKSAVE_SLOT = 0
     const val AUTO_SAVE_SLOT = SAVESTATE_SLOT_COUNT - 1
 
+    // Pseudo-slots for the rotated auto-save backups (kept in sync with
+    // AutoSaveBak1Slot / AutoSaveBak2Slot in core/savestate.h). Outside the
+    // regular [0, SAVESTATE_SLOT_COUNT) range so they never collide with a
+    // real slot.
+    const val AUTO_SAVE_BAK1_SLOT = 0xF1
+    const val AUTO_SAVE_BAK2_SLOT = 0xF2
+
+    fun isAutoSaveBakSlot(slot: Int) =
+        slot == AUTO_SAVE_BAK1_SLOT || slot == AUTO_SAVE_BAK2_SLOT
+
     external fun getSavestateInfo(): Array<SaveStateInfo>?
+
+    external fun getAutoSaveBackups(): Array<SaveStateInfo>?
 
     external fun saveState(slot: Int)
 

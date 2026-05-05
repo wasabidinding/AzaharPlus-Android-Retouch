@@ -1057,16 +1057,24 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         saveSlotPopup?.dismiss()
         val ctx = requireContext()
         val savestates = NativeLibrary.getSavestateInfo()
+        // "Latest" highlight covers regular slots only — bak entries are
+        // historical by definition, never the freshest write.
         val latestSave = savestates?.maxByOrNull { it.time?.time ?: 0L }
 
         val saveInfoMap = HashMap<Int, NativeLibrary.SaveStateInfo>()
         savestates?.forEach { saveInfoMap[it.slot] = it }
 
-        val slots = listOf(
-            NativeLibrary.QUICKSAVE_SLOT,
-            NativeLibrary.AUTO_SAVE_SLOT,
-            1, 2, 3
-        )
+        // Auto-save backups are only meaningful when loading: saving "to a
+        // backup" has no semantics, so we hide those rows entirely in save mode.
+        val backups = if (!isSaving) NativeLibrary.getAutoSaveBackups() else null
+        backups?.forEach { saveInfoMap[it.slot] = it }
+
+        val slots = mutableListOf<Int>().apply {
+            add(NativeLibrary.QUICKSAVE_SLOT)
+            add(NativeLibrary.AUTO_SAVE_SLOT)
+            backups?.forEach { add(it.slot) }
+            addAll(listOf(1, 2, 3))
+        }
 
         val density = resources.displayMetrics.density
         fun dp(v: Int) = (v * density).toInt()
@@ -1108,10 +1116,15 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             val info = saveInfoMap[slot]
             val isLatest = info != null && info == latestSave
             val hasData = info != null
+            val isBak = NativeLibrary.isAutoSaveBakSlot(slot)
 
             val itemLayout = android.widget.LinearLayout(ctx).apply {
                 orientation = android.widget.LinearLayout.VERTICAL
-                setPadding(dp(14), dp(6), dp(14), dp(6))
+                // Bak rows are visually attached to the Auto Save row above:
+                // extra left padding + a leading ↶ glyph in the name make the
+                // hierarchy obvious without growing the menu width.
+                val leftPad = if (isBak) dp(28) else dp(14)
+                setPadding(leftPad, dp(6), dp(14), dp(6))
                 val outValue = android.util.TypedValue()
                 ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
                 foreground = ctx.getDrawable(outValue.resourceId)
@@ -1121,13 +1134,23 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             val slotName = when (slot) {
                 NativeLibrary.QUICKSAVE_SLOT -> getString(R.string.emulation_quicksave_slot)
                 NativeLibrary.AUTO_SAVE_SLOT -> getString(R.string.emulation_autosave_slot)
+                NativeLibrary.AUTO_SAVE_BAK1_SLOT ->
+                    "↶ " + getString(R.string.emulation_autosave_prev1_slot)
+                NativeLibrary.AUTO_SAVE_BAK2_SLOT ->
+                    "↶ " + getString(R.string.emulation_autosave_prev2_slot)
                 else -> "Slot $slot"
             }
 
             val nameView = android.widget.TextView(ctx).apply {
                 text = slotName
-                textSize = 14f
-                setTextColor(if (isLatest) 0xFF1A6DD9.toInt() else 0xFF333333.toInt())
+                textSize = if (isBak) 12f else 14f
+                setTextColor(
+                    when {
+                        isLatest -> 0xFF1A6DD9.toInt()
+                        isBak -> 0xFF666666.toInt()
+                        else -> 0xFF333333.toInt()
+                    }
+                )
                 typeface = if (isLatest) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
             }
 
