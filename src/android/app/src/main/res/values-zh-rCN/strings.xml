@@ -19,7 +19,7 @@
     <string name="emulation_hot_corner_bottom_center_option_off">关闭</string>
     <string name="emulation_autosave_slot">自动保存</string>
     <string name="emulation_occupied_autosave_slot">自动保存 - %1$tF %1$tR</string>
-    <string name="emulation_autosave_prev1_slot">上一次自动保存</string>
-    <string name="emulation_autosave_prev2_slot">上上次自动保存</string>
+    <string name="emulation_autosave_prev1_slot">备份 01</string>
+    <string name="emulation_autosave_prev2_slot">备份 02</string>
     <string name="independent_controller_settings">独立按键设置</string>
 </resources>
