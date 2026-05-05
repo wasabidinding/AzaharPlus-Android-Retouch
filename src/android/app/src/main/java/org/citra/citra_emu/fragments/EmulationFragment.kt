@@ -1120,11 +1120,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
             val itemLayout = android.widget.LinearLayout(ctx).apply {
                 orientation = android.widget.LinearLayout.VERTICAL
-                // Bak rows are visually attached to the Auto Save row above:
-                // extra left padding + a leading ↶ glyph in the name make the
-                // hierarchy obvious without growing the menu width.
-                val leftPad = if (isBak) dp(28) else dp(14)
-                setPadding(leftPad, dp(6), dp(14), dp(6))
+                setPadding(dp(14), dp(6), dp(14), dp(6))
                 val outValue = android.util.TypedValue()
                 ctx.theme.resolveAttribute(android.R.attr.selectableItemBackground, outValue, true)
                 foreground = ctx.getDrawable(outValue.resourceId)
