@@ -1245,16 +1245,17 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
             // Three-tier emphasis: latest is the obvious target (saturated blue +
             // bold), second-latest is "the other recent one you might want"
-            // (desaturated blue, regular weight), the rest fade to neutral.
+            // (medium-weight blue, slightly muted from the latest), the rest
+            // fade to neutral.
             val nameColor = when {
                 isLatest -> 0xFF1A6DD9.toInt()
-                isSecondLatest -> 0xFF5C7AA3.toInt()
+                isSecondLatest -> 0xFF3F7BC4.toInt()
                 isBak -> 0xFF666666.toInt()
                 else -> 0xFF333333.toInt()
             }
             val timeColor = when {
                 isLatest -> 0xFF1A6DD9.toInt()
-                isSecondLatest -> 0xFF7C95B5.toInt()
+                isSecondLatest -> 0xFF6F95C8.toInt()
                 else -> 0xFF999999.toInt()
             }
 
@@ -1262,7 +1263,11 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 text = slotName
                 textSize = if (isBak) 12f else 14f
                 setTextColor(nameColor)
-                typeface = if (isLatest) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
+                typeface = when {
+                    isLatest -> android.graphics.Typeface.DEFAULT_BOLD
+                    isSecondLatest -> android.graphics.Typeface.create("sans-serif-medium", android.graphics.Typeface.NORMAL)
+                    else -> android.graphics.Typeface.DEFAULT
+                }
             }
 
             val timeView = android.widget.TextView(ctx).apply {
