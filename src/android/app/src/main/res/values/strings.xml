@@ -490,10 +490,12 @@
     <string name="emulation_autosave_prev1_slot">Backup 01</string>
     <string name="emulation_autosave_prev2_slot">Backup 02</string>
     <string name="time_just_now">Just now</string>
+    <string name="time_seconds_ago">%1$ds ago</string>
     <string name="time_minutes_ago">%1$dm ago</string>
     <string name="time_hours_ago">%1$dh ago</string>
     <string name="time_hours_minutes_ago">%1$dh %2$dm ago</string>
     <string name="time_days_ago">%1$dd ago</string>
+    <string name="time_days_hours_ago">%1$dd %2$dh ago</string>
     <string name="emulation_show_fps">Show FPS</string>
     <string name="emulation_haptic_feedback">Haptic Feedback</string>
     <string name="emulation_overlay_options">Overlay Options</string>

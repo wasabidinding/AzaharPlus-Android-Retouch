@@ -810,31 +810,91 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         )
     }
 
-    // Compact relative time for save-slot rows. Within 3 days we trade absolute
-    // precision for at-a-glance recency ("12m ago", "3h 5m ago", "2d ago"); past
-    // that the timestamp is no longer freshness-relevant so we fall back to the
-    // calendar date. Hours are paired with minutes (the only sub-day combo that
-    // adds real signal) but day-resolution drops minutes to avoid noise.
-    private fun formatSaveStateTime(date: java.util.Date): String {
-        val ageMs = System.currentTimeMillis() - date.time
-        if (ageMs < 60_000L) {
-            return getString(R.string.time_just_now)
+    // Returns the time label for a save state at progressively finer levels of
+    // precision. Level 0 is the at-a-glance form ("2 天前"); higher levels add
+    // detail ("2 天 5 小时前", absolute date, absolute date+seconds). Used by
+    // resolveSaveStateTimeLabels to disambiguate rows that would otherwise show
+    // identical labels.
+    private fun formatSaveStateTimeLevels(date: java.util.Date): List<String> {
+        val ageMs = (System.currentTimeMillis() - date.time).coerceAtLeast(0L)
+        val secs = (ageMs / 1000L).toInt()
+        val mins = (ageMs / 60_000L).toInt()
+        val hours = (ageMs / 3_600_000L).toInt()
+        val days = (ageMs / 86_400_000L).toInt()
+        val minInHr = mins % 60
+        val hrInDay = hours % 24
+        val absMin = android.text.format.DateFormat.format("yyyy-MM-dd HH:mm", date).toString()
+        val absSec = android.text.format.DateFormat.format("yyyy-MM-dd HH:mm:ss", date).toString()
+
+        return when {
+            ageMs < 60_000L -> listOf(
+                getString(R.string.time_just_now),
+                getString(R.string.time_seconds_ago, secs.coerceAtLeast(1)),
+                absMin,
+                absSec
+            )
+            ageMs < 3_600_000L -> listOf(
+                getString(R.string.time_minutes_ago, mins),
+                absMin,
+                absSec
+            )
+            ageMs < 86_400_000L -> listOf(
+                if (minInHr == 0) getString(R.string.time_hours_ago, hours)
+                else getString(R.string.time_hours_minutes_ago, hours, minInHr),
+                absMin,
+                absSec
+            )
+            ageMs < 3 * 86_400_000L -> listOf(
+                getString(R.string.time_days_ago, days),
+                if (hrInDay == 0) getString(R.string.time_days_ago, days)
+                else getString(R.string.time_days_hours_ago, days, hrInDay),
+                absMin,
+                absSec
+            )
+            else -> listOf(absMin, absSec)
         }
-        if (ageMs < 3_600_000L) {
-            val mins = (ageMs / 60_000L).toInt()
-            return getString(R.string.time_minutes_ago, mins)
+    }
+
+    // Picks the coarsest precision label for each entry that's still unique
+    // among the set. Entries that don't collide stay at the at-a-glance label;
+    // entries colliding at level 0 step up to level 1, and so on, until either
+    // unique or all levels are exhausted (then we accept whatever's last).
+    private fun resolveSaveStateTimeLabels(
+        savestates: Collection<NativeLibrary.SaveStateInfo>
+    ): Map<Int, String> {
+        val candidates = savestates
+            .filter { it.time != null }
+            .associate { it.slot to formatSaveStateTimeLevels(it.time!!) }
+        val resolved = HashMap<Int, String>(candidates.size)
+        val pending = candidates.keys.toMutableSet()
+        var level = 0
+        // Bound the loop length by the longest level list to guarantee
+        // termination even when entries share an identical timestamp.
+        val maxLevel = candidates.values.maxOfOrNull { it.size } ?: 0
+        while (pending.isNotEmpty() && level < maxLevel) {
+            val labelsAtLevel = pending.associateWith { slot ->
+                val levels = candidates[slot]!!
+                levels.getOrElse(level) { levels.last() }
+            }
+            val counts = labelsAtLevel.values.groupingBy { it }.eachCount()
+            val toRemove = mutableListOf<Int>()
+            for ((slot, label) in labelsAtLevel) {
+                val isLastLevelForEntry = level >= candidates[slot]!!.size - 1
+                if (counts[label] == 1 || isLastLevelForEntry) {
+                    resolved[slot] = label
+                    toRemove.add(slot)
+                }
+            }
+            toRemove.forEach { pending.remove(it) }
+            level++
         }
-        if (ageMs < 86_400_000L) {
-            val hours = (ageMs / 3_600_000L).toInt()
-            val mins = ((ageMs / 60_000L) % 60L).toInt()
-            return if (mins == 0) getString(R.string.time_hours_ago, hours)
-            else getString(R.string.time_hours_minutes_ago, hours, mins)
+        // Anything still pending shares an identical timestamp with another
+        // entry. Display them at their finest level — they'll match, but that
+        // accurately reflects the underlying data.
+        for (slot in pending) {
+            resolved[slot] = candidates[slot]!!.last()
         }
-        if (ageMs < 3 * 86_400_000L) {
-            val days = (ageMs / 86_400_000L).toInt()
-            return getString(R.string.time_days_ago, days)
-        }
-        return android.text.format.DateFormat.format("yyyy-MM-dd HH:mm", date).toString()
+        return resolved
     }
 
     fun isDrawerOpen(): Boolean {
@@ -1112,6 +1172,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             .sortedByDescending { it.time!!.time }
         val latestSave = sortedByTime.getOrNull(0)
         val secondLatestSave = sortedByTime.getOrNull(1)
+        val timeLabels = resolveSaveStateTimeLabels(saveInfoMap.values)
 
         val slots = mutableListOf<Int>().apply {
             add(NativeLibrary.QUICKSAVE_SLOT)
@@ -1207,7 +1268,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             val timeView = android.widget.TextView(ctx).apply {
                 textSize = 10f
                 if (info?.time != null) {
-                    text = formatSaveStateTime(info.time!!)
+                    text = timeLabels[slot] ?: ""
                     setTextColor(timeColor)
                 } else {
                     text = if (isSaving) "" else "Empty"
