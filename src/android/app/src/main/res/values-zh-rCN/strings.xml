@@ -21,5 +21,10 @@
     <string name="emulation_occupied_autosave_slot">自动保存 - %1$tF %1$tR</string>
     <string name="emulation_autosave_prev1_slot">备份 01</string>
     <string name="emulation_autosave_prev2_slot">备份 02</string>
+    <string name="time_just_now">刚刚</string>
+    <string name="time_minutes_ago">%1$d 分钟前</string>
+    <string name="time_hours_ago">%1$d 小时前</string>
+    <string name="time_hours_minutes_ago">%1$d 小时 %2$d 分前</string>
+    <string name="time_days_ago">%1$d 天前</string>
     <string name="independent_controller_settings">独立按键设置</string>
 </resources>

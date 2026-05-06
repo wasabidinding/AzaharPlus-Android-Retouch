@@ -118,6 +118,17 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     private var saveSlotPopup: android.widget.PopupWindow? = null
     private var saveSlotItems: List<Pair<View, (() -> Unit)?>> = emptyList()
     private var saveSlotHighlightedIndex: Int = -1
+    // Pre-selection lets the user release without moving to load the latest
+    // save. Active only in Load mode while the finger stays within
+    // SAVE_SLOT_PRE_SELECT_THRESHOLD_DP of the actual touch point. The anchor
+    // is captured from the first drag move event (which is essentially the
+    // press location within one frame) so off-center long-presses don't
+    // immediately blow past the threshold.
+    private var saveSlotPreSelectIndex: Int = -1
+    private var saveSlotPreSelectActive: Boolean = false
+    private var saveSlotAnchorRecorded: Boolean = false
+    private var saveSlotAnchorX: Int = 0
+    private var saveSlotAnchorY: Int = 0
 
     private lateinit var emulationActivity: EmulationActivity
 
@@ -799,6 +810,33 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         )
     }
 
+    // Compact relative time for save-slot rows. Within 3 days we trade absolute
+    // precision for at-a-glance recency ("12m ago", "3h 5m ago", "2d ago"); past
+    // that the timestamp is no longer freshness-relevant so we fall back to the
+    // calendar date. Hours are paired with minutes (the only sub-day combo that
+    // adds real signal) but day-resolution drops minutes to avoid noise.
+    private fun formatSaveStateTime(date: java.util.Date): String {
+        val ageMs = System.currentTimeMillis() - date.time
+        if (ageMs < 60_000L) {
+            return getString(R.string.time_just_now)
+        }
+        if (ageMs < 3_600_000L) {
+            val mins = (ageMs / 60_000L).toInt()
+            return getString(R.string.time_minutes_ago, mins)
+        }
+        if (ageMs < 86_400_000L) {
+            val hours = (ageMs / 3_600_000L).toInt()
+            val mins = ((ageMs / 60_000L) % 60L).toInt()
+            return if (mins == 0) getString(R.string.time_hours_ago, hours)
+            else getString(R.string.time_hours_minutes_ago, hours, mins)
+        }
+        if (ageMs < 3 * 86_400_000L) {
+            val days = (ageMs / 86_400_000L).toInt()
+            return getString(R.string.time_days_ago, days)
+        }
+        return android.text.format.DateFormat.format("yyyy-MM-dd HH:mm", date).toString()
+    }
+
     fun isDrawerOpen(): Boolean {
         return binding.drawerLayout.isOpen
     }
@@ -1057,9 +1095,6 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         saveSlotPopup?.dismiss()
         val ctx = requireContext()
         val savestates = NativeLibrary.getSavestateInfo()
-        // "Latest" highlight covers regular slots only — bak entries are
-        // historical by definition, never the freshest write.
-        val latestSave = savestates?.maxByOrNull { it.time?.time ?: 0L }
 
         val saveInfoMap = HashMap<Int, NativeLibrary.SaveStateInfo>()
         savestates?.forEach { saveInfoMap[it.slot] = it }
@@ -1068,6 +1103,15 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         // backup" has no semantics, so we hide those rows entirely in save mode.
         val backups = if (!isSaving) NativeLibrary.getAutoSaveBackups() else null
         backups?.forEach { saveInfoMap[it.slot] = it }
+
+        // Tiered emphasis includes backup entries — if the user just loaded a
+        // backup or only backups remain, latest/second-latest may legitimately
+        // resolve to a bak row, and the highlight should follow.
+        val sortedByTime = saveInfoMap.values
+            .filter { it.time != null }
+            .sortedByDescending { it.time!!.time }
+        val latestSave = sortedByTime.getOrNull(0)
+        val secondLatestSave = sortedByTime.getOrNull(1)
 
         val slots = mutableListOf<Int>().apply {
             add(NativeLibrary.QUICKSAVE_SLOT)
@@ -1115,6 +1159,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         for (slot in slots) {
             val info = saveInfoMap[slot]
             val isLatest = info != null && info == latestSave
+            val isSecondLatest = info != null && info == secondLatestSave
             val hasData = info != null
             val isBak = NativeLibrary.isAutoSaveBakSlot(slot)
 
@@ -1137,24 +1182,33 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 else -> "Slot $slot"
             }
 
+            // Three-tier emphasis: latest is the obvious target (saturated blue +
+            // bold), second-latest is "the other recent one you might want"
+            // (desaturated blue, regular weight), the rest fade to neutral.
+            val nameColor = when {
+                isLatest -> 0xFF1A6DD9.toInt()
+                isSecondLatest -> 0xFF5C7AA3.toInt()
+                isBak -> 0xFF666666.toInt()
+                else -> 0xFF333333.toInt()
+            }
+            val timeColor = when {
+                isLatest -> 0xFF1A6DD9.toInt()
+                isSecondLatest -> 0xFF7C95B5.toInt()
+                else -> 0xFF999999.toInt()
+            }
+
             val nameView = android.widget.TextView(ctx).apply {
                 text = slotName
                 textSize = if (isBak) 12f else 14f
-                setTextColor(
-                    when {
-                        isLatest -> 0xFF1A6DD9.toInt()
-                        isBak -> 0xFF666666.toInt()
-                        else -> 0xFF333333.toInt()
-                    }
-                )
+                setTextColor(nameColor)
                 typeface = if (isLatest) android.graphics.Typeface.DEFAULT_BOLD else android.graphics.Typeface.DEFAULT
             }
 
             val timeView = android.widget.TextView(ctx).apply {
                 textSize = 10f
                 if (info?.time != null) {
-                    text = android.text.format.DateFormat.format("yyyy-MM-dd HH:mm", info.time)
-                    setTextColor(if (isLatest) 0xFF1A6DD9.toInt() else 0xFF999999.toInt())
+                    text = formatSaveStateTime(info.time!!)
+                    setTextColor(timeColor)
                 } else {
                     text = if (isSaving) "" else "Empty"
                     setTextColor(0xFFBBBBBB.toInt())
@@ -1190,7 +1244,23 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             container.addView(itemLayout)
         }
         saveSlotItems = itemEntries
+
+        // Pre-select the latest save in Load mode so a long-press-and-release
+        // (no slide) loads it directly. The anchor is recorded on the first
+        // drag-move event below, since that point is essentially where the
+        // user's finger landed (within a frame). Stays armed only while the
+        // finger remains within SAVE_SLOT_PRE_SELECT_THRESHOLD_DP of that
+        // anchor.
+        val preSelectIndex = if (!isSaving && latestSave != null) {
+            slots.indexOf(latestSave.slot).takeIf { it >= 0 } ?: -1
+        } else -1
+        saveSlotPreSelectIndex = preSelectIndex
+        saveSlotPreSelectActive = preSelectIndex >= 0
+        saveSlotAnchorRecorded = false
         saveSlotHighlightedIndex = -1
+        if (preSelectIndex >= 0) {
+            applySaveSlotHighlight(preSelectIndex)
+        }
 
         // Wrap: dim overlay (fullscreen) + card (positioned)
         val root = android.widget.FrameLayout(ctx).apply {
@@ -1212,6 +1282,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 saveSlotPopup = null
                 saveSlotItems = emptyList()
                 saveSlotHighlightedIndex = -1
+                saveSlotPreSelectActive = false
+                saveSlotPreSelectIndex = -1
+                saveSlotAnchorRecorded = false
             }
         }
         saveSlotPopup = popup
@@ -1267,8 +1340,45 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         dimOverlay.animate().alpha(1f).setDuration(200).start()
     }
 
+    private fun applySaveSlotHighlight(index: Int) {
+        if (index == saveSlotHighlightedIndex) return
+        if (saveSlotHighlightedIndex >= 0 && saveSlotHighlightedIndex < saveSlotItems.size) {
+            saveSlotItems[saveSlotHighlightedIndex].first.background = null
+        }
+        if (index >= 0 && index < saveSlotItems.size) {
+            val highlight = android.graphics.drawable.GradientDrawable().apply {
+                setColor(0x1A1A6DD9) // 10% blue, rounded smaller than menu's 16dp to echo it
+                cornerRadius = dpToPx(10f)
+            }
+            saveSlotItems[index].first.background = highlight
+        }
+        saveSlotHighlightedIndex = index
+    }
+
     private fun updateSaveSlotDragHighlight(screenX: Int, screenY: Int) {
         if (saveSlotItems.isEmpty()) return
+
+        if (saveSlotPreSelectActive) {
+            // Anchor on the first move event so we measure against where the
+            // finger actually is, not against the button center (which can sit
+            // a non-trivial distance away from the user's touch point).
+            if (!saveSlotAnchorRecorded) {
+                saveSlotAnchorX = screenX
+                saveSlotAnchorY = screenY
+                saveSlotAnchorRecorded = true
+                return
+            }
+            val dx = screenX - saveSlotAnchorX
+            val dy = screenY - saveSlotAnchorY
+            val threshold = dpToPx(SAVE_SLOT_PRE_SELECT_THRESHOLD_DP).toInt()
+            if (dx * dx + dy * dy <= threshold * threshold) {
+                return
+            }
+            saveSlotPreSelectActive = false
+            saveSlotPreSelectIndex = -1
+            applySaveSlotHighlight(-1)
+        }
+
         var hitIndex = -1
         for (i in saveSlotItems.indices) {
             val (view, action) = saveSlotItems[i]
@@ -1282,21 +1392,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                 break
             }
         }
-        if (hitIndex != saveSlotHighlightedIndex) {
-            // Clear previous highlight
-            if (saveSlotHighlightedIndex >= 0 && saveSlotHighlightedIndex < saveSlotItems.size) {
-                saveSlotItems[saveSlotHighlightedIndex].first.background = null
-            }
-            // Set new highlight: light blue with rounded corners (smaller than menu's 16dp to echo it)
-            if (hitIndex >= 0) {
-                val highlight = android.graphics.drawable.GradientDrawable().apply {
-                    setColor(0x1A1A6DD9) // 10% blue
-                    cornerRadius = dpToPx(10f)
-                }
-                saveSlotItems[hitIndex].first.background = highlight
-            }
-            saveSlotHighlightedIndex = hitIndex
-        }
+        applySaveSlotHighlight(hitIndex)
     }
 
     private fun commitSaveSlotDragSelection(screenX: Int, screenY: Int) {
@@ -2704,5 +2800,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
     companion object {
         private val perfStatsUpdateHandler = Handler(Looper.myLooper()!!)
+
+        // Movement past this distance from the long-press anchor cancels the
+        // auto-armed latest-save selection. Tuned to be larger than incidental
+        // finger jitter but small enough that any deliberate slide hits it.
+        private const val SAVE_SLOT_PRE_SELECT_THRESHOLD_DP = 5f
     }
 }
