@@ -414,6 +414,53 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
                 }
             }
 
+            // Refresh after buttons block: if a button just claimed this
+            // pointer on ACTION_DOWN, joystick/dpad blocks below must see it.
+            if (!hasActiveButtons) {
+                for (button in overlayButtons) {
+                    if (button.trackId == pointerId) {
+                        hasActiveButtons = true
+                        break
+                    }
+                }
+            }
+
+            // Process joysticks before dpads so an ACTION_DOWN landing in the
+            // overlap of joystick and dpad bounding rects is claimed by the
+            // joystick. Without this ordering (plus the refresh below), both
+            // controls could claim the same pointerId on DOWN, and neither
+            // would receive the matching UP — leaving the joystick "stuck".
+            if(!hasActiveDpad && !hasActiveButtons) {
+                for (joystick in overlayJoysticks) {
+                    val stateChanged = joystick.updateStatus(event, pointerIndex, hasActiveJoystick, this)
+                    if (!stateChanged) {
+                        continue
+                    }
+                    anyOverlayStateChanged = true
+
+                    val axisID = joystick.joystickId
+                    NativeLibrary.onGamePadMoveEvent(
+                        NativeLibrary.TouchScreenDevice,
+                        axisID,
+                        joystick.xAxis,
+                        joystick.yAxis
+                    )
+
+                    shouldUpdateView = true
+                }
+            }
+
+            // Refresh after joystick block: if a joystick just claimed this
+            // pointer on ACTION_DOWN, the dpad block below must see it and skip.
+            if (!hasActiveJoystick) {
+                for (joystick in overlayJoysticks) {
+                    if (joystick.trackId == pointerId) {
+                        hasActiveJoystick = true
+                        break
+                    }
+                }
+            }
+
             if(!hasActiveButtons && !hasActiveJoystick) {
                 for (dpad in overlayDpads) {
                     val stateChanged = dpad.updateStatus(
@@ -447,26 +494,6 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
                         NativeLibrary.TouchScreenDevice,
                         dpad.rightId,
                         dpad.rightStatus
-                    )
-
-                    shouldUpdateView = true
-                }
-            }
-
-            if(!hasActiveDpad && !hasActiveButtons) {
-                for (joystick in overlayJoysticks) {
-                    val stateChanged = joystick.updateStatus(event, pointerIndex, hasActiveJoystick, this)
-                    if (!stateChanged) {
-                        continue
-                    }
-                    anyOverlayStateChanged = true
-
-                    val axisID = joystick.joystickId
-                    NativeLibrary.onGamePadMoveEvent(
-                        NativeLibrary.TouchScreenDevice,
-                        axisID,
-                        joystick.xAxis,
-                        joystick.yAxis
                     )
 
                     shouldUpdateView = true
