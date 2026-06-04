@@ -379,6 +379,11 @@ class AboutGameBottomSheet : BottomSheetDialogFragment() {
         val updateTitleId = titleId or 0xE00000000L
 
         popup.setOnMenuItemClickListener { menuItem ->
+            if (menuItem.itemId == R.id.game_context_clear_shader_cache) {
+                confirmClearShaderCache()
+                return@setOnMenuItemClickListener true
+            }
+
             val uninstallAction: () -> Unit = {
                 when (menuItem.itemId) {
                     R.id.game_context_uninstall -> NativeLibrary.uninstallTitle(titleId, game.mediaType)
@@ -399,6 +404,84 @@ class AboutGameBottomSheet : BottomSheetDialogFragment() {
         }
 
         popup.show()
+    }
+
+    private fun confirmClearShaderCache() {
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.game_context_clear_shader_cache)
+            .setMessage(getString(R.string.clear_shader_cache_confirmation, game.title))
+            .setPositiveButton(R.string.clear) { _, _ ->
+                IndeterminateProgressDialogFragment.newInstance(
+                    requireActivity(),
+                    R.string.clearing_shader_cache,
+                    false
+                ) {
+                    val deleted = deleteShaderCacheFiles()
+                    if (deleted > 0) {
+                        CitraApplication.appContext.getString(R.string.clear_shader_cache_result, deleted)
+                    } else {
+                        CitraApplication.appContext.getString(R.string.clear_shader_cache_none)
+                    }
+                }.show(parentFragmentManager, IndeterminateProgressDialogFragment.TAG)
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
+    /**
+     * Deletes this title's on-disk shader and pipeline caches (OpenGL + Vulkan), mirroring the
+     * desktop "Delete Shader Cache" action. Returns the number of files removed. Runs on a
+     * background thread. Folders are located via the SAF-backed documents tree's folderUriHelper
+     * (which, unlike resolvePath, has no path whitelist), then individual files are removed with
+     * DocumentFile — so no native/core code is touched and only this title's caches are deleted.
+     */
+    private fun deleteShaderCacheFiles(): Int {
+        val tree = CitraApplication.documentsTree
+        val context = CitraApplication.appContext
+        val id = String.format("%016X", game.titleId)
+        var deleted = 0
+
+        // (shader subdirectory, exact file name) pairs, all keyed by this title's ID. Other games'
+        // caches live in the same folders, so we delete by exact name rather than wiping the dir.
+        val targets = listOf(
+            "shaders/opengl/transferable" to "$id.bin",
+            "shaders/opengl/precompiled/separable" to "$id.bin",
+            "shaders/opengl/precompiled/conventional" to "$id.bin",
+            "shaders/vulkan/transferable" to "${id}_vs.vkch",
+            "shaders/vulkan/transferable" to "${id}_fs.vkch",
+            "shaders/vulkan/transferable" to "${id}_gs.vkch",
+            "shaders/vulkan/transferable" to "${id}_pl.vkch"
+        )
+        targets.forEach { (dir, name) ->
+            try {
+                val dirUri = tree.folderUriHelper(dir) ?: return@forEach
+                val file = DocumentFile.fromTreeUri(context, dirUri)?.findFile(name)
+                if (file != null && file.delete()) deleted++
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Failed to delete shader cache file $dir/$name: ${e.message}")
+            }
+        }
+
+        // Vulkan driver pipeline cache files are named "<id>-<vendor><device>.bin"; the suffix
+        // depends on the GPU, so enumerate the directory and match by title-id prefix.
+        val pipelineFiles = try {
+            val pipelineUri = tree.folderUriHelper("shaders/vulkan/pipeline")
+            if (pipelineUri != null) DocumentFile.fromTreeUri(context, pipelineUri)?.listFiles() else null
+        } catch (e: Exception) {
+            android.util.Log.e(TAG, "Failed to enumerate Vulkan pipeline cache: ${e.message}")
+            null
+        }
+        // Delete each match in its own try so one failure doesn't skip the rest.
+        pipelineFiles?.forEach { f ->
+            try {
+                val n = f.name
+                if (n != null && n.startsWith(id) && f.delete()) deleted++
+            } catch (e: Exception) {
+                android.util.Log.e(TAG, "Failed to delete pipeline cache file ${f.name}: ${e.message}")
+            }
+        }
+
+        return deleted
     }
 
     private data class GameDirectories(

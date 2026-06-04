@@ -677,6 +677,11 @@
     <string name="game_context_open_extra">Open Extra Folder</string>
     <string name="game_context_uninstall_dlc">Uninstall DLC</string>
     <string name="game_context_uninstall_updates">Uninstall Updates</string>
+    <string name="game_context_clear_shader_cache">Clear Shader Cache</string>
+    <string name="clearing_shader_cache">Clearing shader cache…</string>
+    <string name="clear_shader_cache_confirmation">Delete the shaders cached on disk for \"%1$s\"?\n\nThey will be rebuilt automatically the next time you play. Use this if the game started crashing or freezing right after loading.</string>
+    <string name="clear_shader_cache_result">Cleared %1$d shader cache file(s)</string>
+    <string name="clear_shader_cache_none">No shader cache found for this game</string>
     <string name="shortcut">Shortcut</string>
     <string name="shortcut_name">Shortcut Name</string>
     <string name="edit_icon">Edit icon</string>
