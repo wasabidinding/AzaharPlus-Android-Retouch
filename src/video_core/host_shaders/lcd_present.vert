@@ -32,12 +32,11 @@ void main() {
     // This will be used in the fragment shader for scanline and LCD grid calculations
     // Orientation-specific grid size: landscape = 1x, portrait = 1.5x
     // Note: Original grid size is 256, 384; 1.5x is 171, 256, 2x is 128, 192; 1.33x is 192, 288
-    // lcd_coarse forces a fixed 4/3x grid (256,384 / (4/3) = 192,288) in both orientations.
-    if (lcd_coarse == 1) {
-        omega = 3.141592654 * 2.0 * vec2(192, 288); // 4/3x (coarse)
-    } else if (is_portrait == 1) {
-        omega = 3.141592654 * 2.0 * vec2(171, 256); // 1.5x
+    // lcd_coarse enlarges the grid one step vs the orientation default (coarser in both):
+    //   landscape 1x (256,384) -> 4/3x (192,288);  portrait 1.5x (171,256) -> 2x (128,192)
+    if (is_portrait == 1) {
+        omega = 3.141592654 * 2.0 * (lcd_coarse == 1 ? vec2(128, 192) : vec2(171, 256));
     } else {
-        omega = 3.141592654 * 2.0 * vec2(256, 384); // 1x
+        omega = 3.141592654 * 2.0 * (lcd_coarse == 1 ? vec2(192, 288) : vec2(256, 384));
     }
 }
