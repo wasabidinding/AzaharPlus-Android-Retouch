@@ -315,10 +315,12 @@
     <string-array name="postProcessingShaderNames">
         <item>None</item>
         <item>LCD Effect</item>
+        <item>LCD Effect (4/3)</item>
     </string-array>
     <string-array name="postProcessingShaderValues">
         <item>none (builtin)</item>
         <item>lcd (builtin)</item>
+        <item>lcd 4/3 (builtin)</item>
     </string-array>
 
     <string-array name="staticThemeNames">

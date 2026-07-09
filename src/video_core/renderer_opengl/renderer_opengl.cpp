@@ -426,8 +426,14 @@ void RendererOpenGL::ReloadShader(Settings::StereoRenderOption render_3d) {
         }
         // If current_per_game_lcd_setting == 0, use system default (no change)
 
+        // Both LCD builtins share the same fragment shader; "lcd 4/3 (builtin)" only differs by
+        // using the coarse 4/3x grid, signalled to the vertex shader via the lcd_coarse uniform.
+        const bool is_lcd_shader =
+            effective_shader == "lcd (builtin)" || effective_shader == "lcd 4/3 (builtin)";
+        lcd_shader_coarse = effective_shader == "lcd 4/3 (builtin)";
+
         // Use appropriate vertex shader based on the effective shader
-        if (effective_shader == "lcd (builtin)") {
+        if (is_lcd_shader) {
             vertex_shader_source = HostShaders::LCD_PRESENT_VERT;
         } else {
             vertex_shader_source = HostShaders::OPENGL_PRESENT_VERT;
@@ -435,7 +441,7 @@ void RendererOpenGL::ReloadShader(Settings::StereoRenderOption render_3d) {
 
         if (effective_shader == "none (builtin)") {
             shader_data += HostShaders::OPENGL_PRESENT_FRAG;
-        } else if (effective_shader == "lcd (builtin)") {
+        } else if (is_lcd_shader) {
             shader_data += HostShaders::LCD_PRESENT_FRAG;
         } else {
             std::string shader_text = OpenGL::GetPostProcessingShaderCode(
@@ -472,6 +478,7 @@ void RendererOpenGL::ReloadShader(Settings::StereoRenderOption render_3d) {
     uniform_o_resolution = glGetUniformLocation(shader.handle, "o_resolution");
     uniform_layer = glGetUniformLocation(shader.handle, "layer");
     uniform_is_portrait = glGetUniformLocation(shader.handle, "is_portrait");
+    uniform_lcd_coarse = glGetUniformLocation(shader.handle, "lcd_coarse");
     attrib_position = glGetAttribLocation(shader.handle, "vert_position");
     attrib_tex_coord = glGetAttribLocation(shader.handle, "vert_tex_coord");
 }
@@ -722,6 +729,10 @@ void RendererOpenGL::DrawScreens(const Layout::FramebufferLayout& layout, bool f
     // Pass orientation to shader (1 = portrait, 0 = landscape)
     if (uniform_is_portrait != static_cast<GLuint>(-1)) {
         glUniform1i(uniform_is_portrait, layout.is_portrait ? 1 : 0);
+    }
+    // Pass LCD grid mode to shader (1 = coarse 4/3x, 0 = orientation default)
+    if (uniform_lcd_coarse != static_cast<GLuint>(-1)) {
+        glUniform1i(uniform_lcd_coarse, lcd_shader_coarse ? 1 : 0);
     }
 
     const bool stereo_single_screen =

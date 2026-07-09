@@ -18,6 +18,8 @@ layout(location = 1) out vec2 omega;
 // implicitly be [0, 0, 1]
 uniform mat3x2 modelview_matrix;
 uniform int is_portrait;
+// 1 = coarse 4/3x grid (fixed, orientation-independent); 0 = orientation-based default
+uniform int lcd_coarse;
 
 void main() {
     // Multiply input position by the rotscale part of the matrix and then manually translate by
@@ -30,7 +32,10 @@ void main() {
     // This will be used in the fragment shader for scanline and LCD grid calculations
     // Orientation-specific grid size: landscape = 1x, portrait = 1.5x
     // Note: Original grid size is 256, 384; 1.5x is 171, 256, 2x is 128, 192; 1.33x is 192, 288
-    if (is_portrait == 1) {
+    // lcd_coarse forces a fixed 4/3x grid (256,384 / (4/3) = 192,288) in both orientations.
+    if (lcd_coarse == 1) {
+        omega = 3.141592654 * 2.0 * vec2(192, 288); // 4/3x (coarse)
+    } else if (is_portrait == 1) {
         omega = 3.141592654 * 2.0 * vec2(171, 256); // 1.5x
     } else {
         omega = 3.141592654 * 2.0 * vec2(256, 384); // 1x

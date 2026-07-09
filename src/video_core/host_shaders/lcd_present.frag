@@ -35,10 +35,12 @@ void main() {
     vec2 angle = frag_tex_coord * omega;
     
     // Calculate scanline effect (horizontal lines)
-    float yfactor = (brighten_scanlines + sin(angle.y)) / (brighten_scanlines + 1.0);
-    
+    // Divide by the base (not base + 1) so the modulation averages to 1.0 -> no net darkening.
+    // Bright-phase peaks exceed 1.0 and clamp to white in SDR (mild highlight roll-off).
+    float yfactor = (brighten_scanlines + sin(angle.y)) / brighten_scanlines;
+
     // Calculate LCD grid effect (vertical pixel structure)
-    vec3 xfactors = (brighten_lcd + sin(angle.x + offsets)) / (brighten_lcd + 1.0);
+    vec3 xfactors = (brighten_lcd + sin(angle.x + offsets)) / brighten_lcd;
     
     // Sample the original texture and apply LCD effects
     vec4 original_color = texture(color_texture, frag_tex_coord);

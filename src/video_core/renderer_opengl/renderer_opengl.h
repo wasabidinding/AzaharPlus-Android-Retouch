@@ -110,6 +110,10 @@ private:
     GLuint uniform_o_resolution;
     GLuint uniform_layer;
     GLuint uniform_is_portrait;
+    GLuint uniform_lcd_coarse;
+
+    // Whether the currently loaded LCD present shader uses the coarse 4/3x grid
+    bool lcd_shader_coarse = false;
 
     // Shader attribute input indices
     GLuint attrib_position;
