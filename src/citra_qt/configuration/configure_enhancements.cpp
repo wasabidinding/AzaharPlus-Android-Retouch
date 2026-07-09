@@ -90,7 +90,6 @@ void ConfigureEnhancements::updateShaders(Settings::StereoRenderOption stereo_op
     } else {
         ui->shader_combobox->addItem(QStringLiteral("none (builtin)"));
         ui->shader_combobox->addItem(QStringLiteral("lcd (builtin)"));
-        ui->shader_combobox->addItem(QStringLiteral("lcd 4/3 (builtin)"));
         current_shader = Settings::values.pp_shader_name.GetValue();
     }
 
@@ -99,8 +98,6 @@ void ConfigureEnhancements::updateShaders(Settings::StereoRenderOption stereo_op
         ui->shader_combobox->setCurrentIndex(0);
     } else if (current_shader == "lcd (builtin)") {
         ui->shader_combobox->setCurrentIndex(1);
-    } else if (current_shader == "lcd 4/3 (builtin)") {
-        ui->shader_combobox->setCurrentIndex(2);
     } else {
         ui->shader_combobox->setCurrentIndex(0);
     }
