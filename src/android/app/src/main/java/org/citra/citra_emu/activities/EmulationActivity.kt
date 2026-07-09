@@ -8,8 +8,10 @@ import android.Manifest.permission
 import android.annotation.SuppressLint
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.ActivityInfo
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -100,6 +102,11 @@ class EmulationActivity : AppCompatActivity() {
     private val autoSaveThrottleMs = 2000L
     private val autoSaveFailureBackoffMs = 1000L
 
+    // HDR (LCD highlight brightening). The native scRGB surface is created shortly after resume,
+    // so we poll getHdrPresentState() a few times and switch the Window into HDR mode once ready.
+    private val hdrHandler = Handler(Looper.getMainLooper())
+    private var hdrApplied = false
+
     fun markAutoResumeCancelled() {
         autoResumeCancelled = true
     }
@@ -171,11 +178,48 @@ class EmulationActivity : AppCompatActivity() {
         super.onResume()
         enableFullscreenImmersive()
         applyOrientationSettings() // Check for orientation settings changes on runtime
+        setupHdr()
     }
 
     override fun onStop() {
+        teardownHdr()
         secondaryDisplay.releasePresentation()
         super.onStop()
+    }
+
+    // --- HDR: brighten LCD-shader highlights beyond SDR white ---------------------------------
+    // Requires Android 14+ (colorMode) and a native FP16/scRGB surface (LCD shader active +
+    // driver support). Falls back silently to SDR otherwise, so nothing changes for other setups.
+    private fun setupHdr() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
+        hdrHandler.removeCallbacksAndMessages(null)
+        // The scRGB surface is created a moment after resume; retry a few times before giving up.
+        longArrayOf(300L, 1000L, 2500L).forEach { delay ->
+            hdrHandler.postDelayed({ tryEnableHdr() }, delay)
+        }
+    }
+
+    private fun tryEnableHdr() {
+        if (hdrApplied) return
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return
+        if (NativeLibrary.getHdrPresentState() != 1) return
+        window.colorMode = ActivityInfo.COLOR_MODE_HDR
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            window.setDesiredHdrHeadroom(LCD_PEAK_HEADROOM)
+        }
+        hdrApplied = true
+        Log.info("[EmulationActivity] HDR enabled (LCD highlights, headroom $LCD_PEAK_HEADROOM)")
+    }
+
+    private fun teardownHdr() {
+        hdrHandler.removeCallbacksAndMessages(null)
+        if (!hdrApplied) return
+        hdrApplied = false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            window.setDesiredHdrHeadroom(0f)
+        }
+        window.colorMode = ActivityInfo.COLOR_MODE_DEFAULT
+        Log.info("[EmulationActivity] HDR disabled")
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -678,6 +722,10 @@ class EmulationActivity : AppCompatActivity() {
 
     companion object {
         private var instance: EmulationActivity? = null
+
+        // Peak HDR headroom for the LCD shader: its bright-phase modulation tops out at ~1.33x
+        // SDR white (17/16 * 5/4), so request exactly that much extended range.
+        private const val LCD_PEAK_HEADROOM = 1.33f
 
         fun isRunning(): Boolean {
             return instance?.isEmulationRunning ?: false

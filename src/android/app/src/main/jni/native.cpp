@@ -388,6 +388,19 @@ void Java_org_citra_citra_1emu_NativeLibrary_surfaceChanged(JNIEnv* env,
     LOG_INFO(Frontend, "Surface changed");
 }
 
+// Returns 1 when the primary OpenGL window surface is an FP16/scRGB (HDR-capable) surface, i.e.
+// the LCD shader's highlights can be shown brighter than SDR white. The Kotlin side uses this to
+// decide whether to switch the Window into HDR colour mode. Returns 0 on Vulkan / non-LCD / when
+// the driver lacks the required extensions.
+jint Java_org_citra_citra_1emu_NativeLibrary_getHdrPresentState([[maybe_unused]] JNIEnv* env,
+                                                                [[maybe_unused]] jobject obj) {
+#ifdef ENABLE_OPENGL
+    return IsGlHdrSurfacePresent() ? 1 : 0;
+#else
+    return 0;
+#endif
+}
+
 void Java_org_citra_citra_1emu_NativeLibrary_secondarySurfaceChanged(JNIEnv* env,
                                                                      [[maybe_unused]] jobject obj,
                                                                      jobject surf) {

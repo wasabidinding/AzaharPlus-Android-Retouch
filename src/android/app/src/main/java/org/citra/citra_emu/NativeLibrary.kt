@@ -189,6 +189,12 @@ object NativeLibrary {
     external fun surfaceDestroyed()
     external fun doFrame()
 
+    /**
+     * 1 when the primary GL window surface is FP16/scRGB (HDR-capable, LCD shader active), else 0.
+     * Used to decide whether to put the emulation Window into HDR colour mode.
+     */
+    external fun getHdrPresentState(): Int
+
     // Second window
     external fun secondarySurfaceChanged(secondary_surface: Surface)
     external fun secondarySurfaceDestroyed()

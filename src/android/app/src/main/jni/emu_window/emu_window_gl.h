@@ -17,6 +17,11 @@ class System;
 
 struct ANativeWindow;
 
+// True once the primary OpenGL window surface has been created as FP16 + scRGB (extended range),
+// i.e. capable of displaying the LCD shader's >1.0 highlights as HDR. Queried from JNI to decide
+// whether to switch the Android Window into HDR colour mode.
+bool IsGlHdrSurfacePresent();
+
 class EmuWindow_Android_OpenGL : public EmuWindow_Android {
 public:
     EmuWindow_Android_OpenGL(Core::System& system, ANativeWindow* surface, bool is_secondary,
@@ -40,6 +45,8 @@ private:
     EGLSurface egl_surface{};
     EGLContext egl_context{};
     EGLDisplay egl_display{};
+    // Request an FP16/scRGB surface for HDR highlight output (primary window + LCD shader only).
+    bool egl_hdr_requested{false};
 
     enum class PresentingState {
         Initial,

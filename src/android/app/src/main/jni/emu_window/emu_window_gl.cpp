@@ -4,8 +4,10 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <cstdlib>
 #include <string>
+#include <string_view>
 
 #include <android/native_window_jni.h>
 #include <glad/glad.h>
@@ -35,6 +37,66 @@ static constexpr std::array<EGLint, 15> egl_attribs{EGL_SURFACE_TYPE,
                                                     EGL_NONE};
 static constexpr std::array<EGLint, 5> egl_empty_attribs{EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE};
 static constexpr std::array<EGLint, 4> egl_context_attribs{EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE};
+
+// --- HDR (FP16 + scRGB extended range) ---------------------------------------
+// Some NDK EGL headers predate these extensions; define the tokens defensively.
+#ifndef EGL_GL_COLORSPACE_KHR
+#define EGL_GL_COLORSPACE_KHR 0x309D
+#endif
+#ifndef EGL_GL_COLORSPACE_SCRGB_EXT
+#define EGL_GL_COLORSPACE_SCRGB_EXT 0x3351
+#endif
+#ifndef EGL_COLOR_COMPONENT_TYPE_EXT
+#define EGL_COLOR_COMPONENT_TYPE_EXT 0x3339
+#endif
+#ifndef EGL_COLOR_COMPONENT_TYPE_FLOAT_EXT
+#define EGL_COLOR_COMPONENT_TYPE_FLOAT_EXT 0x333B
+#endif
+
+// Half-float RGBA config so the compositor can receive scRGB values > 1.0 (HDR highlights).
+static constexpr std::array<EGLint, 19> egl_attribs_fp16{EGL_SURFACE_TYPE,
+                                                         EGL_WINDOW_BIT,
+                                                         EGL_RENDERABLE_TYPE,
+                                                         EGL_OPENGL_ES3_BIT_KHR,
+                                                         EGL_COLOR_COMPONENT_TYPE_EXT,
+                                                         EGL_COLOR_COMPONENT_TYPE_FLOAT_EXT,
+                                                         EGL_RED_SIZE,
+                                                         16,
+                                                         EGL_GREEN_SIZE,
+                                                         16,
+                                                         EGL_BLUE_SIZE,
+                                                         16,
+                                                         EGL_ALPHA_SIZE,
+                                                         16,
+                                                         EGL_DEPTH_SIZE,
+                                                         0,
+                                                         EGL_STENCIL_SIZE,
+                                                         0,
+                                                         EGL_NONE};
+
+// Set true once the primary window's scRGB surface is created; read from the JNI thread.
+static std::atomic<bool> g_gl_hdr_surface_present{false};
+
+static bool HasHdrEglExtensions(EGLDisplay display) {
+    const char* ext = eglQueryString(display, EGL_EXTENSIONS);
+    if (!ext) {
+        return false;
+    }
+    const std::string_view s{ext};
+    return s.find("EGL_EXT_pixel_format_float") != std::string_view::npos &&
+           s.find("EGL_EXT_gl_colorspace_scrgb") != std::string_view::npos;
+}
+
+// The LCD present shader is the only content that emits values > 1.0, so only pay the FP16 cost
+// (and only risk the extended-range path) when it is the selected post-processing shader.
+static bool IsLcdPresentShaderActive() {
+    const std::string& name = Settings::values.pp_shader_name.GetValue();
+    return name == "lcd (builtin)" || name == "lcd 4/3 (builtin)";
+}
+
+bool IsGlHdrSurfacePresent() {
+    return g_gl_hdr_surface_present.load();
+}
 
 class SharedContext_Android : public Frontend::GraphicsContext {
 public:
@@ -83,10 +145,30 @@ EmuWindow_Android_OpenGL::EmuWindow_Android_OpenGL(Core::System& system_, ANativ
         LOG_CRITICAL(Frontend, "eglInitialize() failed");
         return;
     }
-    if (EGLint egl_num_configs{}; eglChooseConfig(egl_display, egl_attribs.data(), &egl_config, 1,
-                                                  &egl_num_configs) != EGL_TRUE) {
-        LOG_CRITICAL(Frontend, "eglChooseConfig() failed");
-        return;
+    // Prefer an FP16 config for HDR highlight output when the LCD shader is active and the driver
+    // advertises the required extensions; otherwise fall back to the standard 8-bit config.
+    // Both windows use the same (FP16) config so the shared GL context stays compatible with the
+    // secondary window's surface (an FP16 context + 8-bit surface would fail eglMakeCurrent); only
+    // the primary window actually drives HDR mode (see g_gl_hdr_surface_present below).
+    egl_hdr_requested = IsLcdPresentShaderActive() && HasHdrEglExtensions(egl_display);
+    bool config_ok = false;
+    if (egl_hdr_requested) {
+        EGLint n{};
+        if (eglChooseConfig(egl_display, egl_attribs_fp16.data(), &egl_config, 1, &n) == EGL_TRUE &&
+            n > 0) {
+            config_ok = true;
+            LOG_INFO(Frontend, "HDR: selected FP16 EGLConfig for scRGB output");
+        } else {
+            egl_hdr_requested = false;
+            LOG_INFO(Frontend, "HDR: FP16 config unavailable, using 8-bit");
+        }
+    }
+    if (!config_ok) {
+        if (EGLint egl_num_configs{}; eglChooseConfig(egl_display, egl_attribs.data(), &egl_config,
+                                                      1, &egl_num_configs) != EGL_TRUE) {
+            LOG_CRITICAL(Frontend, "eglChooseConfig() failed");
+            return;
+        }
     }
 
     CreateWindowSurface();
@@ -143,8 +225,31 @@ bool EmuWindow_Android_OpenGL::CreateWindowSurface() {
     eglGetConfigAttrib(egl_display, egl_config, EGL_NATIVE_VISUAL_ID, &format);
     ANativeWindow_setBuffersGeometry(host_window, 0, 0, format);
 
-    if (egl_surface = eglCreateWindowSurface(egl_display, egl_config, host_window, 0);
-        egl_surface == EGL_NO_SURFACE) {
+    egl_surface = EGL_NO_SURFACE;
+    bool scrgb_ok = false;
+    if (egl_hdr_requested) {
+        const EGLint scrgb_attribs[] = {EGL_GL_COLORSPACE_KHR, EGL_GL_COLORSPACE_SCRGB_EXT,
+                                        EGL_NONE};
+        egl_surface = eglCreateWindowSurface(egl_display, egl_config, host_window, scrgb_attribs);
+        scrgb_ok = egl_surface != EGL_NO_SURFACE;
+        if (!scrgb_ok) {
+            LOG_WARNING(Frontend, "HDR: scRGB window surface failed, using default colourspace");
+        }
+    }
+    if (egl_surface == EGL_NO_SURFACE) {
+        egl_surface = eglCreateWindowSurface(egl_display, egl_config, host_window, 0);
+    }
+
+    // Only the primary window's scRGB surface drives HDR; expose the outcome to the JNI query.
+    if (!is_secondary) {
+        g_gl_hdr_surface_present = scrgb_ok && egl_surface != EGL_NO_SURFACE;
+        if (egl_hdr_requested) {
+            LOG_INFO(Frontend, "HDR: primary scRGB surface present={}",
+                     g_gl_hdr_surface_present.load());
+        }
+    }
+
+    if (egl_surface == EGL_NO_SURFACE) {
         return {};
     }
 
