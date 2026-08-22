@@ -406,6 +406,15 @@
     <string name="emulation_hot_corner_action_quickload">快速加载</string>
     <string name="emulation_hot_corner_action_menu">弹出菜单</string>
     <string name="emulation_hot_corner_action_swap">交换屏幕</string>
+    <string name="emulation_hot_corner_portrait_tl">竖屏 • 上屏左半</string>
+    <string name="emulation_hot_corner_portrait_tr">竖屏 • 上屏右半</string>
+    <string name="emulation_hot_corner_landscape_tl">横屏 • 上屏左半</string>
+    <string name="emulation_hot_corner_landscape_tr">横屏 • 上屏右半</string>
+    <string name="emulation_hot_corner_button_prefix">按键：</string>
+    <string name="emulation_hot_corner_button_dpad_up">方向键 上</string>
+    <string name="emulation_hot_corner_button_dpad_down">方向键 下</string>
+    <string name="emulation_hot_corner_button_dpad_left">方向键 左</string>
+    <string name="emulation_hot_corner_button_dpad_right">方向键 右</string>
     <string name="emulation_configure_controls">控制设置</string>
     <string name="emulation_edit_layout">编辑布局</string>
     <string name="emulation_done">完成</string>

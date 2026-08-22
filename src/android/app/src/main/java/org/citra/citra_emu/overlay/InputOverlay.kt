@@ -250,6 +250,18 @@ class InputOverlay(context: Context?, attrs: AttributeSet?) : SurfaceView(contex
         }
     }
 
+    /**
+     * Whether the given point (in this view's coordinates) lands on any on-screen control.
+     * Used by [HotCornerOverlay] so hot zones covering the top screen yield to virtual buttons.
+     */
+    fun isPointOverControl(x: Float, y: Float): Boolean {
+        val px = x.toInt()
+        val py = y.toInt()
+        return overlayButtons.any { it.bounds.contains(px, py) } ||
+            overlayDpads.any { it.bounds.contains(px, py) } ||
+            overlayJoysticks.any { it.bounds.contains(px, py) }
+    }
+
     override fun onTouch(v: View, event: MotionEvent): Boolean {
         if (isInEditMode) {
             return onTouchWhileEditing(event)

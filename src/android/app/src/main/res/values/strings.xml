@@ -515,6 +515,15 @@
     <string name="emulation_hot_corner_action_quickload">Quick Load</string>
     <string name="emulation_hot_corner_action_menu">Open Menu</string>
     <string name="emulation_hot_corner_action_swap">Swap Screens</string>
+    <string name="emulation_hot_corner_portrait_tl">Portrait • Top Screen Left Half</string>
+    <string name="emulation_hot_corner_portrait_tr">Portrait • Top Screen Right Half</string>
+    <string name="emulation_hot_corner_landscape_tl">Landscape • Top Screen Left Half</string>
+    <string name="emulation_hot_corner_landscape_tr">Landscape • Top Screen Right Half</string>
+    <string name="emulation_hot_corner_button_prefix">Button:</string>
+    <string name="emulation_hot_corner_button_dpad_up">D-Pad Up</string>
+    <string name="emulation_hot_corner_button_dpad_down">D-Pad Down</string>
+    <string name="emulation_hot_corner_button_dpad_left">D-Pad Left</string>
+    <string name="emulation_hot_corner_button_dpad_right">D-Pad Right</string>
     <string name="emulation_configure_controls">Configure Controls</string>
     <string name="emulation_edit_layout">Edit Layout</string>
     <string name="emulation_done">Done</string>

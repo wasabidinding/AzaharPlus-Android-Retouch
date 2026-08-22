@@ -150,6 +150,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     // Only used if a game is passed through intent on google play variant
     private var gameFd: Int? = null
     private var cancelAutoResumeRequested = false
+    private var hotCornerSyncCounter = 0
     private var turboIndicatorAnimator: ValueAnimator? = null
     private var pauseIconAnimator: ValueAnimator? = null
     private var turboStateListener: TurboHelper.TurboStateListener? = null
@@ -293,6 +294,7 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
         // Setup hot corner overlay
         binding.hotCornerOverlay.apply {
+            inputOverlay = binding.surfaceInputOverlay
             refresh()
             setOnActionListener(object : HotCornerOverlay.OnActionListener {
                 override fun onHotCornerAction(action: HotCornerSettings.HotCornerAction) {
@@ -1034,6 +1036,8 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
     override fun onPause() {
         saveSlotPopup?.dismiss()
+        // Release any game button held through a hot zone before emulation pauses.
+        _binding?.hotCornerOverlay?.cancelActiveTouches()
         if (NativeLibrary.isRunning()) {
             // 在暂停 emulation 之前触发自动保存，此时 loop 还在运行，
             // saveState() 入队的信号会被 loop 处理。
@@ -1683,6 +1687,42 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                     true
                 }
 
+                R.id.menu_emulation_hot_corner_portrait_tl -> {
+                    showHotCornerDialog(
+                        Configuration.ORIENTATION_PORTRAIT,
+                        HotCornerSettings.HotCornerPosition.TOP_SCREEN_LEFT,
+                        getString(R.string.emulation_hot_corner_portrait_tl)
+                    )
+                    true
+                }
+
+                R.id.menu_emulation_hot_corner_portrait_tr -> {
+                    showHotCornerDialog(
+                        Configuration.ORIENTATION_PORTRAIT,
+                        HotCornerSettings.HotCornerPosition.TOP_SCREEN_RIGHT,
+                        getString(R.string.emulation_hot_corner_portrait_tr)
+                    )
+                    true
+                }
+
+                R.id.menu_emulation_hot_corner_landscape_tl -> {
+                    showHotCornerDialog(
+                        Configuration.ORIENTATION_LANDSCAPE,
+                        HotCornerSettings.HotCornerPosition.TOP_SCREEN_LEFT,
+                        getString(R.string.emulation_hot_corner_landscape_tl)
+                    )
+                    true
+                }
+
+                R.id.menu_emulation_hot_corner_landscape_tr -> {
+                    showHotCornerDialog(
+                        Configuration.ORIENTATION_LANDSCAPE,
+                        HotCornerSettings.HotCornerPosition.TOP_SCREEN_RIGHT,
+                        getString(R.string.emulation_hot_corner_landscape_tr)
+                    )
+                    true
+                }
+
                 R.id.menu_emulation_hot_corner_bottom_center -> {
                     showBottomCenterHotCornerDialog()
                     true
@@ -1722,50 +1762,44 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         position: HotCornerSettings.HotCornerPosition,
         title: String
     ) {
-        val items = arrayOf(
-            getString(R.string.emulation_hot_corner_action_none),
-            getString(R.string.emulation_hot_corner_action_pause),
-            getString(R.string.emulation_hot_corner_action_turbo),
-            getString(R.string.emulation_hot_corner_action_quicksave),
-            getString(R.string.emulation_hot_corner_action_quickload),
-            getString(R.string.emulation_hot_corner_action_menu),
-            getString(R.string.emulation_hot_corner_action_swap)
+        val emulatorActions = listOf(
+            HotCornerSettings.HotCornerAction.NONE to R.string.emulation_hot_corner_action_none,
+            HotCornerSettings.HotCornerAction.PAUSE_RESUME to R.string.emulation_hot_corner_action_pause,
+            HotCornerSettings.HotCornerAction.TOGGLE_TURBO to R.string.emulation_hot_corner_action_turbo,
+            HotCornerSettings.HotCornerAction.QUICK_SAVE to R.string.emulation_hot_corner_action_quicksave,
+            HotCornerSettings.HotCornerAction.QUICK_LOAD to R.string.emulation_hot_corner_action_quickload,
+            HotCornerSettings.HotCornerAction.OPEN_MENU to R.string.emulation_hot_corner_action_menu,
+            HotCornerSettings.HotCornerAction.SWAP_SCREENS to R.string.emulation_hot_corner_action_swap
         )
-        val current = HotCornerSettings.getAction(orientation, position)
-        var selectedIndex = when (current) {
-            HotCornerSettings.HotCornerAction.NONE -> 0
-            HotCornerSettings.HotCornerAction.PAUSE_RESUME -> 1
-            HotCornerSettings.HotCornerAction.TOGGLE_TURBO -> 2
-            HotCornerSettings.HotCornerAction.QUICK_SAVE -> 3
-            HotCornerSettings.HotCornerAction.QUICK_LOAD -> 4
-            HotCornerSettings.HotCornerAction.OPEN_MENU -> 5
-            HotCornerSettings.HotCornerAction.SWAP_SCREENS -> 6
+        val bindings = mutableListOf<HotCornerSettings.HotCornerBinding>()
+        val labels = mutableListOf<String>()
+        emulatorActions.forEach { (action, resId) ->
+            bindings += HotCornerSettings.HotCornerBinding.Emulator(action)
+            labels += getString(resId)
+        }
+        val buttonPrefix = getString(R.string.emulation_hot_corner_button_prefix)
+        HotCornerSettings.GameButton.entries.forEach { button ->
+            bindings += HotCornerSettings.HotCornerBinding.Button(button)
+            labels += "$buttonPrefix ${getString(button.labelResId)}"
         }
 
-        MaterialAlertDialogBuilder(requireContext())
+        val current = HotCornerSettings.getBinding(orientation, position)
+        var selectedIndex = bindings.indexOf(current).coerceAtLeast(0)
+
+        val builder = MaterialAlertDialogBuilder(requireContext())
             .setTitle(title)
-            .setSingleChoiceItems(items, selectedIndex) { _, which ->
+            .setSingleChoiceItems(labels.toTypedArray(), selectedIndex) { _, which ->
                 selectedIndex = which
             }
             .setPositiveButton(R.string.save) { dialog, _ ->
-                val action = when (selectedIndex) {
-                    0 -> HotCornerSettings.HotCornerAction.NONE
-                    1 -> HotCornerSettings.HotCornerAction.PAUSE_RESUME
-                    2 -> HotCornerSettings.HotCornerAction.TOGGLE_TURBO
-                    3 -> HotCornerSettings.HotCornerAction.QUICK_SAVE
-                    4 -> HotCornerSettings.HotCornerAction.QUICK_LOAD
-                    5 -> HotCornerSettings.HotCornerAction.OPEN_MENU
-                    6 -> HotCornerSettings.HotCornerAction.SWAP_SCREENS
-                    else -> HotCornerSettings.HotCornerAction.NONE
-                }
-                HotCornerSettings.setAction(orientation, position, action)
+                HotCornerSettings.setBinding(orientation, position, bindings[selectedIndex])
                 binding.hotCornerOverlay.refresh()
                 dialog.dismiss()
             }
             .setNegativeButton(android.R.string.cancel) { dialog, _ ->
                 dialog.dismiss()
             }
-            .show()
+        builder.show()
     }
 
     private fun showBottomCenterHotCornerDialog() {
@@ -2480,6 +2514,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
     override fun doFrame(frameTimeNanos: Long) {
         Choreographer.getInstance().postFrameCallback(this)
         NativeLibrary.doFrame()
+        if (++hotCornerSyncCounter >= HOT_CORNER_SYNC_INTERVAL_FRAMES) {
+            hotCornerSyncCounter = 0
+            _binding?.hotCornerOverlay?.takeIf { it.visibility == View.VISIBLE }?.syncWithScreenLayout()
+        }
     }
 
     private fun setInsets() {
@@ -2866,6 +2904,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
 
     companion object {
         private val perfStatsUpdateHandler = Handler(Looper.myLooper()!!)
+
+        // How often (in frames) top-screen hot zones re-check the emulator's screen layout.
+        private const val HOT_CORNER_SYNC_INTERVAL_FRAMES = 30
 
         // Movement past this distance from the long-press anchor cancels the
         // auto-armed latest-save selection. Tuned to be larger than incidental
