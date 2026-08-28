@@ -88,22 +88,30 @@ void Swapchain::Create(u32 width_, u32 height_, vk::SurfaceKHR surface_, bool lo
 
     SetupImages();
     RefreshSemaphores();
+
+    // The new swapchain may have a different image count; start the semaphore ring over so
+    // frame_index can never index past the freshly sized arrays.
+    frame_index = 0;
+    image_index = 0;
 }
 
-bool Swapchain::AcquireNextImage() {
+bool Swapchain::AcquireNextImage(u64 timeout_ns) {
     if (needs_recreation) {
         return false;
     }
 
     MICROPROFILE_SCOPE(Vulkan_Acquire);
     const vk::Device device = instance.GetDevice();
-    const vk::Result result =
-        device.acquireNextImageKHR(swapchain, std::numeric_limits<u64>::max(),
-                                   image_acquired[frame_index], VK_NULL_HANDLE, &image_index);
+    const vk::Result result = device.acquireNextImageKHR(
+        swapchain, timeout_ns, image_acquired[frame_index], VK_NULL_HANDLE, &image_index);
 
     switch (result) {
     case vk::Result::eSuccess:
         break;
+    case vk::Result::eTimeout:
+    case vk::Result::eNotReady:
+        // No image available within the timeout; the swapchain itself is still fine.
+        return false;
     case vk::Result::eSuboptimalKHR:
     case vk::Result::eErrorSurfaceLostKHR:
     case vk::Result::eErrorOutOfDateKHR:

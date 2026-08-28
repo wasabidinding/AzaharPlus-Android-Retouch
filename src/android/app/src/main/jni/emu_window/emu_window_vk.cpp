@@ -6,7 +6,10 @@
 #include <android/native_window_jni.h>
 #include "common/logging/log.h"
 #include "common/settings.h"
+#include "core/core.h"
 #include "jni/emu_window/emu_window_vk.h"
+#include "video_core/gpu.h"
+#include "video_core/renderer_base.h"
 
 class GraphicsContext_Android final : public Frontend::GraphicsContext {
 public:
@@ -54,4 +57,19 @@ std::unique_ptr<Frontend::GraphicsContext> EmuWindow_Android_Vulkan::CreateShare
 
 std::shared_ptr<Common::DynamicLibrary> EmuWindow_Android_Vulkan::GetDriverLibrary() {
     return driver_library;
+}
+
+bool EmuWindow_Android_Vulkan::PresentLastFrame() {
+    auto& system = Core::System::GetInstance();
+    if (!system.IsPoweredOn()) {
+        return false;
+    }
+    // No surface bound (e.g. paused without the SurfaceView being recreated): the old surface
+    // still shows the last frame, nothing to do. Report handled so the caller doesn't fall back
+    // to briefly running emulation.
+    if (!render_window) {
+        return true;
+    }
+    system.GPU().Renderer().TryPresent(0, is_secondary);
+    return true;
 }

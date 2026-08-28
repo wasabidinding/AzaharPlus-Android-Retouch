@@ -31,6 +31,11 @@ public:
     void DoneCurrent() override;
 
     virtual void TryPresenting() {}
+    /// Re-presents the last rendered frame on the current surface without running emulation.
+    /// Returns false when the backend cannot do this (caller may fall back to another strategy).
+    virtual bool PresentLastFrame() {
+        return false;
+    }
     // EGL Context must be shared
     // could probably use the existing
     // SharedContext for this instead, this is maybe temporary

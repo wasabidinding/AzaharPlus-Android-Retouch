@@ -111,7 +111,9 @@ PresentWindow::PresentWindow(Frontend::EmuWindow& emu_window_, const Instance& i
       use_present_thread{Settings::values.async_presentation.GetValue()},
       last_render_surface{emu_window.GetWindowInfo().render_surface} {
 
-    const u32 num_images = swapchain.GetImageCount();
+    // One extra frame beyond the swapchain image count: the most recently presented frame is
+    // retained (not returned to free_queue) so it can be re-presented while paused.
+    const u32 num_images = swapchain.GetImageCount() + 1;
     const vk::Device device = instance.GetDevice();
 
     const vk::CommandPoolCreateInfo pool_info = {
@@ -134,8 +136,14 @@ PresentWindow::PresentWindow(Frontend::EmuWindow& emu_window_, const Instance& i
         frame.cmdbuf = command_buffers[i];
         frame.render_ready = device.createSemaphore({});
         frame.present_done = device.createFence({.flags = vk::FenceCreateFlagBits::eSignaled});
-        free_queue.push(&frame);
+        if (i + 1 < num_images) {
+            free_queue.push(&frame);
+        }
     }
+    // Hold the spare frame back as the (empty) "last presented" slot so the number of frames the
+    // renderer can queue is unchanged from the start; it is released to free_queue once the first
+    // real frame is retained. PresentLastFrame ignores it while it has no image.
+    last_presented_frame = &swap_chain[num_images - 1];
 
     if (instance.HasDebuggingToolAttached()) {
         for (u32 i = 0; i < num_images; ++i) {
@@ -248,18 +256,28 @@ Frame* PresentWindow::GetRenderFrame() {
     Frame* frame = free_queue.front();
     free_queue.pop();
 
+    // Wait for the presentation to be finished so all frame resources are free
+    WaitPresentDone(frame);
+    instance.GetDevice().resetFences(frame->present_done);
+    return frame;
+}
+
+bool PresentWindow::WaitPresentDone(Frame* frame, u64 timeout_ns) {
     vk::Device device = instance.GetDevice();
     vk::Result result{};
+    const bool bounded = timeout_ns != std::numeric_limits<u64>::max();
 
     const auto wait = [&]() {
-        result = device.waitForFences(frame->present_done, false, std::numeric_limits<u64>::max());
+        result = device.waitForFences(frame->present_done, false, timeout_ns);
         return result;
     };
 
-    // Wait for the presentation to be finished so all frame resources are free
     while (wait() != vk::Result::eSuccess) {
         // Retry if the waiting times out
         if (result == vk::Result::eTimeout) {
+            if (bounded) {
+                return false;
+            }
             continue;
         }
 
@@ -270,16 +288,26 @@ Frame* PresentWindow::GetRenderFrame() {
             continue;
         }
     }
+    return true;
+}
 
-    device.resetFences(frame->present_done);
-    return frame;
+void PresentWindow::RetainPresentedFrame(Frame* frame) {
+    // Caller must hold swapchain_mutex.
+    Frame* const previous = std::exchange(last_presented_frame, frame);
+    if (!previous) {
+        return;
+    }
+    std::scoped_lock fl{free_mutex};
+    free_queue.push(previous);
+    free_cv.notify_one();
 }
 
 void PresentWindow::Present(Frame* frame) {
     if (!use_present_thread) {
         scheduler.WaitWorker();
+        std::scoped_lock lock{swapchain_mutex};
         CopyToSwapchain(frame);
-        free_queue.push(frame);
+        RetainPresentedFrame(frame);
         return;
     }
 
@@ -330,10 +358,8 @@ void PresentWindow::PresentThread(std::stop_token token) {
 
         CopyToSwapchain(frame);
 
-        // Free the frame for reuse
-        std::scoped_lock fl{free_mutex};
-        free_queue.push(frame);
-        free_cv.notify_one();
+        // Retain this frame for re-presentation and free the previously retained one for reuse
+        RetainPresentedFrame(frame);
     }
 }
 
@@ -345,35 +371,102 @@ void PresentWindow::NotifySurfaceChanged() {
 #endif
 }
 
-void PresentWindow::CopyToSwapchain(Frame* frame) {
-    const auto recreate_swapchain = [&] {
+bool PresentWindow::HasPendingSurface() {
 #ifdef ANDROID
-        {
-            std::unique_lock lock{recreate_surface_mutex};
-            recreate_surface_cv.wait(lock, [this]() { return surface != next_surface; });
-            surface = next_surface;
-        }
+    std::scoped_lock lock{recreate_surface_mutex};
+    return surface != next_surface;
+#else
+    return false;
 #endif
-        std::scoped_lock submit_lock{scheduler.submit_mutex};
-        graphics_queue.waitIdle();
-        swapchain.Create(frame->width, frame->height, surface, low_refresh_rate);
-    };
+}
 
-#ifndef ANDROID
+void PresentWindow::RecreateSwapchain(u32 width, u32 height,
+                                      [[maybe_unused]] bool wait_for_new_surface) {
+#ifdef ANDROID
+    {
+        std::unique_lock lock{recreate_surface_mutex};
+        if (wait_for_new_surface) {
+            recreate_surface_cv.wait(lock, [this]() { return surface != next_surface; });
+        }
+        surface = next_surface;
+    }
+#endif
+    std::scoped_lock submit_lock{scheduler.submit_mutex};
+    graphics_queue.waitIdle();
+    swapchain.Create(width, height, surface, low_refresh_rate);
+}
+
+void PresentWindow::CopyToSwapchain(Frame* frame) {
+#ifdef ANDROID
+    // The platform surface was replaced (e.g. after screen lock); don't try to present to the
+    // old one first, switch straight to the new surface.
+    if (HasPendingSurface()) {
+        RecreateSwapchain(frame->width, frame->height, true);
+    }
+#else
     const bool use_vsync = Settings::values.use_vsync.GetValue();
     const bool size_changed =
         swapchain.GetWidth() != frame->width || swapchain.GetHeight() != frame->height;
     const bool vsync_changed = vsync_enabled != use_vsync;
     if (vsync_changed || size_changed) [[unlikely]] {
         vsync_enabled = use_vsync;
-        recreate_swapchain();
+        RecreateSwapchain(frame->width, frame->height, false);
     }
 #endif
 
     while (!swapchain.AcquireNextImage()) {
-        recreate_swapchain();
+        RecreateSwapchain(frame->width, frame->height, true);
     }
 
+    SubmitToSwapchain(frame, true);
+}
+
+void PresentWindow::PresentLastFrame() {
+    // Serialize against the present thread (and the synchronous Present path).
+    std::scoped_lock lock{swapchain_mutex};
+
+    Frame* const frame = last_presented_frame;
+    if (!frame || !frame->image) {
+        LOG_DEBUG(Render_Vulkan, "No frame available to re-present");
+        return;
+    }
+
+    // This runs on the UI thread, so unlike CopyToSwapchain it must never block indefinitely
+    // (no waiting for a new surface, bounded acquire/fence waits).
+    constexpr u64 acquire_timeout_ns = 100'000'000; // 100 ms
+    constexpr u64 fence_timeout_ns = 1'000'000'000; // 1 s
+
+    if (HasPendingSurface()) {
+        RecreateSwapchain(frame->width, frame->height, false);
+    }
+
+    if (!swapchain.AcquireNextImage(acquire_timeout_ns)) {
+        if (!swapchain.NeedsRecreation()) {
+            LOG_WARNING(Render_Vulkan, "Timed out acquiring swapchain image to re-present");
+            return;
+        }
+        // The swapchain became out-of-date/suboptimal on the current surface. Rebuild it on that
+        // same surface and retry once, so a failed re-present doesn't leave needs_recreation set
+        // (which would make the next real frame wait for a surface change that may never come).
+        RecreateSwapchain(frame->width, frame->height, false);
+        if (!swapchain.AcquireNextImage(acquire_timeout_ns)) {
+            LOG_WARNING(Render_Vulkan, "Could not acquire swapchain image to re-present");
+            return;
+        }
+    }
+
+    // The frame's command buffer and fence were used by its previous presentation;
+    // make sure that has fully completed before reusing them.
+    if (!WaitPresentDone(frame, fence_timeout_ns)) {
+        LOG_WARNING(Render_Vulkan, "Timed out waiting for previous present of retained frame");
+        return;
+    }
+    instance.GetDevice().resetFences(frame->present_done);
+
+    SubmitToSwapchain(frame, false);
+}
+
+void PresentWindow::SubmitToSwapchain(Frame* frame, bool wait_render_ready) {
     const vk::Image swapchain_image = swapchain.Image();
 
     const vk::CommandBufferBeginInfo begin_info = {
@@ -463,9 +556,12 @@ void PresentWindow::CopyToSwapchain(Frame* frame) {
     const vk::Semaphore present_ready = swapchain.GetPresentReadySemaphore();
     const vk::Semaphore image_acquired = swapchain.GetImageAcquiredSemaphore();
     const std::array wait_semaphores = {image_acquired, frame->render_ready};
+    // When re-presenting a frame, render_ready has already been consumed by the earlier
+    // present submission (binary semaphore), so only wait on image acquisition.
+    const u32 wait_count = wait_render_ready ? 2u : 1u;
 
     vk::SubmitInfo submit_info = {
-        .waitSemaphoreCount = static_cast<u32>(wait_semaphores.size()),
+        .waitSemaphoreCount = wait_count,
         .pWaitSemaphores = wait_semaphores.data(),
         .pWaitDstStageMask = wait_stage_masks.data(),
         .commandBufferCount = 1u,

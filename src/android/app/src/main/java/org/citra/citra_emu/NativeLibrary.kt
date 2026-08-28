@@ -190,6 +190,13 @@ object NativeLibrary {
     external fun doFrame()
 
     /**
+     * Re-presents the last rendered frame on the current surface without advancing emulation.
+     * Returns true when the graphics backend handled it (Vulkan); false means the caller must
+     * fall back to briefly running the emulation loop (OpenGL).
+     */
+    external fun presentLastFrame(): Boolean
+
+    /**
      * 1 when the primary GL window surface is FP16/scRGB (HDR-capable, LCD shader active), else 0.
      * Used to decide whether to put the emulation Window into HDR colour mode.
      */

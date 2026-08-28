@@ -242,5 +242,39 @@ EmulationFragment.onResume()
 ## 8. 状态总览
 
 - 截至 2026-04-28：所有 Android-side hack 已 revert（commit `93b4b0089`），仓库回到没尝试过此问题的状态
-- Vulkan TryPresent 修复方向：**未开始**，待用户决定是否启动
-- bg_color hardcode：**保留**（`src/common/settings.h:588-590`），等 Vulkan 修复后再考虑还原
+- 2026-08-28：**Vulkan 侧修复已实现**（见第 9 节），待真机验证
+- bg_color hardcode：**保留**（`src/common/settings.h:588-590`），Vulkan 修复验证通过后可考虑还原
+
+---
+
+## 9. 2026-08-28 实现：Vulkan 保留上一帧并重新呈现
+
+与第 4 节的思路一致，但实现点放在 `PresentWindow`（离屏 Frame → swapchain 的 blit 层），而非 renderer 层：
+
+### 改动
+| 文件 | 内容 |
+|---|---|
+| `vk_present_window.h/.cpp` | 多分配 1 个 `Frame`；最近一次 present 的 Frame 记为 `last_presented_frame`，**不回 `free_queue`**（下一帧 present 后才释放），保证其 image 内容不被模拟线程覆盖。新增 `PresentLastFrame()`：持 `swapchain_mutex`，若 Android 有新 surface 待切换则先重建 swapchain，acquire image，等待并 reset 该 Frame 的 `present_done` fence，然后重新提交 blit（**不再等待 `render_ready` 信号量**——二元信号量已被上次 present 消费）。`CopyToSwapchain` 拆成 `RecreateSwapchain` / `SubmitToSwapchain(frame, wait_render_ready)`；Android 上 surface 变更后改为**主动**重建 swapchain，不再先对旧 surface 试 acquire |
+| `renderer_vulkan.h/.cpp` | `TryPresent()` 不再是空实现，调用对应 `PresentWindow::PresentLastFrame()` |
+| `jni/emu_window/emu_window.h`, `emu_window_vk.*` | 新增 `virtual bool PresentLastFrame()`；Vulkan 实现调 `Renderer().TryPresent()`，返回 true 表示后端已处理 |
+| `jni/native.cpp`, `NativeLibrary.kt` | 新增 JNI `presentLastFrame(): Boolean`，不受 `pause_emulation` 影响 |
+| `EmulationFragment.kt` | `presentFrameWhilePaused()` 先调 `presentLastFrame()`；返回 false（OpenGL）才退回原来的 unpause→doFrame→pause 方案 |
+
+### 为什么 Vulkan 不能沿用 OpenGL 的 unpause 技巧
+OpenGL 的 EGL surface 由模拟线程在 `PollEvents()` 里重建，所以必须短暂唤醒模拟线程；且 GL mailbox 会自动重发上一帧。Vulkan 的 swapchain 由 present 线程管理，只有新帧入队才会重建，暂停时永远没有新帧 → 黑屏。直接从 UI 线程重新提交上一帧即可，模拟状态不前进。
+
+### 线程/同步要点
+- `PresentLastFrame` 在 UI 线程执行，用 `swapchain_mutex` 与 present 线程互斥；同步 present 模式（`async_presentation=false`）的 `Present()` 也补了同一把锁
+- UI 线程不做无界等待：acquire 100ms 超时、fence 1s 超时，超时即放弃（`Swapchain::AcquireNextImage` 新增 timeout 参数，`eTimeout/eNotReady` 不置 `needs_recreation`）；"等新 surface"的阻塞循环只在 present 线程使用
+- acquire 因 out-of-date/suboptimal 失败时，在**当前** surface 上重建 swapchain 并重试一次，避免 `needs_recreation` 残留导致下一真实帧死等一个不会再来的 surface 变更
+- `Swapchain::Create` 现在会重置 `frame_index/image_index`（原本重建后可能越界索引信号量数组，预存问题）
+- 帧节奏不变：多分配的 Frame 一开始就作为空的 `last_presented_frame` 持有，不进 `free_queue`，可排队帧数与之前完全一致
+
+### Codex review 提到但未处理
+- `native.cpp` 新 JNI `presentLastFrame` 与关机时 `window.reset()` 之间无锁（UI 线程 vs 模拟线程）。与现有 `doFrame`/`TryPresenting` 路径完全相同的预存暴露，暂不单独处理
+
+### 待验证（真机）
+1. 主动暂停 + 锁屏 + 解锁 → 应保留冻结帧与米白背景
+2. 主动暂停 + 切应用 + 切回
+3. 不暂停 + 锁屏 + 解锁（正常恢复渲染，无异常）
+4. 关闭"异步呈现"设置后重复 1

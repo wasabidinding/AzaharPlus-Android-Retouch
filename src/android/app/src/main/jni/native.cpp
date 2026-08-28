@@ -460,6 +460,16 @@ void Java_org_citra_citra_1emu_NativeLibrary_surfaceDestroyed([[maybe_unused]] J
     }
 }
 
+jboolean Java_org_citra_citra_1emu_NativeLibrary_presentLastFrame([[maybe_unused]] JNIEnv* env,
+                                                                  [[maybe_unused]] jobject obj) {
+    // Re-present the last rendered frame while paused (no emulation advances). Currently only the
+    // Vulkan window supports this; returns false otherwise.
+    if (stop_run || !window) {
+        return JNI_FALSE;
+    }
+    return window->PresentLastFrame() ? JNI_TRUE : JNI_FALSE;
+}
+
 void Java_org_citra_citra_1emu_NativeLibrary_doFrame([[maybe_unused]] JNIEnv* env,
                                                      [[maybe_unused]] jobject obj) {
     if (stop_run || pause_emulation) {

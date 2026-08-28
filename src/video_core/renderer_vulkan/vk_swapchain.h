@@ -5,6 +5,7 @@
 #pragma once
 
 #include <mutex>
+#include <limits>
 #include <vector>
 #include "common/common_types.h"
 #include "video_core/renderer_vulkan/vk_common.h"
@@ -24,7 +25,14 @@ public:
     void Create(u32 width, u32 height, vk::SurfaceKHR surface, bool low_refresh_rate);
 
     /// Acquires the next image in the swapchain.
-    bool AcquireNextImage();
+    /// Acquires the next swapchain image. Returns false if the swapchain needs recreation, or if
+    /// timeout_ns elapsed before an image became available (needs_recreation is left untouched).
+    bool AcquireNextImage(u64 timeout_ns = std::numeric_limits<u64>::max());
+
+    /// True when the last acquire/present reported the swapchain as unusable.
+    [[nodiscard]] bool NeedsRecreation() const noexcept {
+        return needs_recreation;
+    }
 
     /// Presents the current image and move to the next one
     void Present();

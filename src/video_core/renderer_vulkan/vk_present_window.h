@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include <atomic>
+#include <limits>
 #include <condition_variable>
 #include <mutex>
 #include <queue>
@@ -52,6 +53,11 @@ public:
     /// Queues the provided frame for presentation.
     void Present(Frame* frame);
 
+    /// Presents the most recently presented frame again, without rendering a new one.
+    /// Used while emulation is paused and the platform surface has been recreated
+    /// (e.g. Android screen lock / app switch), so the window is not left blank.
+    void PresentLastFrame();
+
     /// This is called to notify the rendering backend of a surface change
     void NotifySurfaceChanged();
 
@@ -68,6 +74,24 @@ private:
 
     void CopyToSwapchain(Frame* frame);
 
+    /// Records and submits the copy of frame to the currently acquired swapchain image.
+    void SubmitToSwapchain(Frame* frame, bool wait_render_ready);
+
+    /// Recreates the swapchain. On Android, with wait_for_new_surface the call blocks until a new
+    /// surface has been provided via NotifySurfaceChanged; otherwise it uses whatever surface is
+    /// current (adopting a pending one if there is one).
+    void RecreateSwapchain(u32 width, u32 height, bool wait_for_new_surface);
+
+    /// Returns true if a new surface has been set but the swapchain is still using the old one.
+    bool HasPendingSurface();
+
+    /// Waits until the frame's present_done fence is signaled. Returns false if timeout_ns
+    /// elapsed first (only possible with a finite timeout).
+    bool WaitPresentDone(Frame* frame, u64 timeout_ns = std::numeric_limits<u64>::max());
+
+    /// Makes frame the retained "last presented" frame, releasing the previously retained one.
+    void RetainPresentedFrame(Frame* frame);
+
     vk::RenderPass CreateRenderpass();
 
 private:
@@ -83,6 +107,9 @@ private:
     vk::RenderPass present_renderpass;
     std::vector<Frame> swap_chain;
     std::queue<Frame*> free_queue;
+    /// The frame most recently copied to the swapchain. Kept out of free_queue so its
+    /// contents stay intact and can be re-presented (see PresentLastFrame).
+    Frame* last_presented_frame{};
     std::queue<Frame*> present_queue;
     std::condition_variable free_cv;
     std::condition_variable recreate_surface_cv;

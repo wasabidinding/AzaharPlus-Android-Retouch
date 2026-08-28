@@ -17,6 +17,8 @@ public:
 
     void PollEvents() override {}
 
+    bool PresentLastFrame() override;
+
     std::unique_ptr<GraphicsContext> CreateSharedContext() const override;
 
     std::shared_ptr<Common::DynamicLibrary> GetDriverLibrary() override;

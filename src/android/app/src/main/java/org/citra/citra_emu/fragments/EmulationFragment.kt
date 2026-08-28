@@ -2787,6 +2787,9 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
             if (state != State.PAUSED) return
             if (surface == null) return
             try {
+                // Vulkan：直接把上一帧重新呈现到新 Surface，不推进模拟
+                if (NativeLibrary.presentLastFrame()) return
+                // OpenGL：需要模拟线程在 PollEvents 中重建 EGL surface，
                 // 临时恢复一帧以将内容呈现在新 Surface 上，然后立即暂停
                 NativeLibrary.unPauseEmulation()
                 NativeLibrary.doFrame()

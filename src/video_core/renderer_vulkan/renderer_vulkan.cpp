@@ -1430,6 +1430,18 @@ bool RendererVulkan::TryRenderScreenshotWithHostMemory() {
     return true;
 }
 
+void RendererVulkan::TryPresent([[maybe_unused]] int timeout_ms, bool is_secondary) {
+    // Re-present the last rendered frame without advancing emulation. Used while paused after
+    // the platform surface has been recreated (Android screen lock / app switch), so the new
+    // surface shows the frozen frame instead of black.
+    PresentWindow* const window =
+        is_secondary ? secondary_present_window_ptr.get() : &main_present_window;
+    if (!window) {
+        return;
+    }
+    window->PresentLastFrame();
+}
+
 void RendererVulkan::NotifySurfaceChanged(bool is_second_window) {
     if (is_second_window) {
         if (secondary_present_window_ptr) {
