@@ -1012,8 +1012,14 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                     )
                 }
             } else {
-                // System-caused pause: auto-resume
-                emulationState.unpause()
+                // System-caused pause: auto-resume.
+                // If the SurfaceView was destroyed (screen lock / app switch) its new surface
+                // hasn't arrived yet; resuming now would render into a dead surface and the new
+                // one would show black until the first frame lands. Defer to runWithValidSurface,
+                // which re-presents the last frame on the new surface and then unpauses.
+                if (emulationState.hasSurface) {
+                    emulationState.unpause()
+                }
                 hidePauseIcon()
                 binding.inGameMenu.menu.findItem(R.id.menu_emulation_pause)?.let { menuItem ->
                     menuItem.title = resources.getString(R.string.pause_emulation)
@@ -2637,6 +2643,10 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
         val isRunning: Boolean
             get() = state == State.RUNNING
 
+        @get:Synchronized
+        val hasSurface: Boolean
+            get() = surface != null
+
         @Synchronized
         fun stop() {
             if (state != State.STOPPED) {
@@ -2750,6 +2760,12 @@ class EmulationFragment : Fragment(), SurfaceHolder.Callback, Choreographer.Fram
                         } catch (_: Exception) { }
                     } else {
                         Log.debug("[EmulationFragment] Resuming emulation.")
+                        // Put the last rendered frame on the new surface first so there is no
+                        // black gap before emulation produces its next frame (Vulkan only;
+                        // no-op on OpenGL).
+                        try {
+                            NativeLibrary.presentLastFrame()
+                        } catch (_: Exception) { }
                         unpause()
                     }
                 }

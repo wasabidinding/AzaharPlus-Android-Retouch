@@ -273,6 +273,11 @@ OpenGL 的 EGL surface 由模拟线程在 `PollEvents()` 里重建，所以必�
 ### Codex review 提到但未处理
 - `native.cpp` 新 JNI `presentLastFrame` 与关机时 `window.reset()` 之间无锁（UI 线程 vs 模拟线程）。与现有 `doFrame`/`TryPresenting` 路径完全相同的预存暴露，暂不单独处理
 
+### 不暂停直接锁屏/切应用的黑屏（同日修复）
+原流程 `onResume()` 先 `unpause()`，此时新 Surface 尚未创建，模拟线程对着已销毁的 surface 渲染，新 Surface 出现后要等 present 线程重建 swapchain 并画出第一帧，期间为黑。现在 `onResume()` 仅在 `emulationState.hasSurface` 时立即 unpause，否则推迟到 `runWithValidSurface()`：先 `presentLastFrame()` 把上一帧铺到新 Surface，再 `unpause()`。
+
+Codex review 指出但未处理（均为预存行为）：`pause()` 调 `surfaceDestroyed()` 但 Kotlin 侧 `surface` 不清空；`surfaceChanged` 早于 `onResume` 时会在 fragment 未 resumed 时 unpause；推迟 unpause 期间暂停图标已隐藏。
+
 ### 待验证（真机）
 1. 主动暂停 + 锁屏 + 解锁 → 应保留冻结帧与米白背景
 2. 主动暂停 + 切应用 + 切回
